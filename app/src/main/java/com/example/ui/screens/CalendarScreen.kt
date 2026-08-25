@@ -1728,6 +1728,7 @@ fun WeekScheduleView(
         item {
             HorizontalPager(
                 state = pagerState,
+                verticalAlignment = Alignment.Top,
                 modifier = Modifier.fillMaxWidth()
             ) { page ->
                 val monday = pageToMonday(page)
@@ -2040,9 +2041,8 @@ fun MonthCalendarGridCard(
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
             Spacer(modifier = Modifier.height(4.dp))
 
-            // Month days matrix (rows of 7 days)
-            val totalCells = ((dayOfWeekOffset + daysInMonth + 6) / 7) * 7
-            val rows = totalCells / 7
+            // Month days matrix (fixed 6 rows x 7 days = 42 cells for consistent height across all months)
+            val rows = 6
 
             for (row in 0 until rows) {
                 Row(
@@ -2268,6 +2268,7 @@ fun MonthScheduleView(
         item {
             HorizontalPager(
                 state = pagerState,
+                verticalAlignment = Alignment.Top,
                 modifier = Modifier.fillMaxWidth()
             ) { page ->
                 val ym = pageToYearMonth(page)

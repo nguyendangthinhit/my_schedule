@@ -45,6 +45,7 @@ abstract class AppDatabase : RoomDatabase() {
                         db.execSQL("INSERT INTO boards (name, colorHex, isVisible, sortOrder) VALUES ('Công việc', '#4285F4', 1, 0)")
                         db.execSQL("INSERT INTO boards (name, colorHex, isVisible, sortOrder) VALUES ('Học tập', '#34A853', 1, 1)")
                         db.execSQL("INSERT INTO boards (name, colorHex, isVisible, sortOrder) VALUES ('Đi chơi', '#E91E63', 1, 2)")
+                        SampleDataSeeder.seedDatabaseRaw(db)
                     }
                 })
                 .build()

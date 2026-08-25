@@ -33,6 +33,7 @@ import com.example.ui.theme.getThemedBgColor
 import com.example.ui.theme.getThemedBorderColor
 import com.example.util.DateUtils
 import com.example.viewmodel.ScheduleViewModel
+import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.LocalTime
 
@@ -73,6 +74,33 @@ fun AddEventScreen(
     var hasReminder by remember { mutableStateOf(existingEvent?.hasReminder ?: true) }
     var reminderOffsetMins by remember { mutableIntStateOf(existingEvent?.reminderTimeOffsetMins ?: 15) }
     var titleError by remember { mutableStateOf(false) }
+
+    // 7 days of week repeater
+    var selectedDaysOfWeek by remember(eventDate) {
+        mutableStateOf(setOf(eventDate.dayOfWeek))
+    }
+
+    LaunchedEffect(eventDate) {
+        if (!selectedDaysOfWeek.contains(eventDate.dayOfWeek)) {
+            selectedDaysOfWeek = selectedDaysOfWeek + eventDate.dayOfWeek
+        }
+    }
+
+    val currentWeekMonday = remember(eventDate) {
+        eventDate.minusDays((eventDate.dayOfWeek.value - 1).toLong())
+    }
+
+    val weekDaysList = remember(currentWeekMonday) {
+        listOf(
+            DayOfWeek.MONDAY to "T.2",
+            DayOfWeek.TUESDAY to "T.3",
+            DayOfWeek.WEDNESDAY to "T.4",
+            DayOfWeek.THURSDAY to "T.5",
+            DayOfWeek.FRIDAY to "T.6",
+            DayOfWeek.SATURDAY to "T.7",
+            DayOfWeek.SUNDAY to "CN"
+        )
+    }
 
     val today = remember { LocalDate.now() }
 
@@ -123,13 +151,13 @@ fun AddEventScreen(
             Toast.makeText(context, "Vui lòng nhập tiêu đề sự kiện", Toast.LENGTH_SHORT).show()
             return
         }
-        val startTime = eventDate.atTime(startHour, startMinute)
-        var endTime = eventDate.atTime(endHour, endMinute)
-        if (endTime.isBefore(startTime) || endTime == startTime) {
-            endTime = startTime.plusHours(1)
-        }
 
         if (eventId != null && existingEvent != null) {
+            val startTime = eventDate.atTime(startHour, startMinute)
+            var endTime = eventDate.atTime(endHour, endMinute)
+            if (endTime.isBefore(startTime) || endTime == startTime) {
+                endTime = startTime.plusHours(1)
+            }
             val updatedEvent = existingEvent.copy(
                 title = title.trim(),
                 startTime = startTime,
@@ -143,19 +171,32 @@ fun AddEventScreen(
             viewModel.setSelectedDate(eventDate)
             Toast.makeText(context, "Đã cập nhật sự kiện thành công!", Toast.LENGTH_SHORT).show()
         } else {
-            val newEvent = Event(
-                title = title.trim(),
-                startTime = startTime,
-                endTime = endTime,
-                category = selectedCategory,
-                isCompleted = false,
-                reminderNote = note.trim(),
-                hasReminder = hasReminder,
-                reminderTimeOffsetMins = reminderOffsetMins
-            )
-            viewModel.addEvent(newEvent, context)
+            val targetDays = if (selectedDaysOfWeek.isEmpty()) setOf(eventDate.dayOfWeek) else selectedDaysOfWeek
+            for (day in targetDays.sortedBy { it.value }) {
+                val targetDate = currentWeekMonday.plusDays((day.value - 1).toLong())
+                val itemStartTime = targetDate.atTime(startHour, startMinute)
+                var itemEndTime = targetDate.atTime(endHour, endMinute)
+                if (itemEndTime.isBefore(itemStartTime) || itemEndTime == itemStartTime) {
+                    itemEndTime = itemStartTime.plusHours(1)
+                }
+                val newEvent = Event(
+                    title = title.trim(),
+                    startTime = itemStartTime,
+                    endTime = itemEndTime,
+                    category = selectedCategory,
+                    isCompleted = false,
+                    reminderNote = note.trim(),
+                    hasReminder = hasReminder,
+                    reminderTimeOffsetMins = reminderOffsetMins
+                )
+                viewModel.addEvent(newEvent, context)
+            }
             viewModel.setSelectedDate(eventDate)
-            Toast.makeText(context, "Đã lưu sự kiện vào lịch!", Toast.LENGTH_SHORT).show()
+            if (targetDays.size > 1) {
+                Toast.makeText(context, "Đã tạo ${targetDays.size} sự kiện trong tuần thành công!", Toast.LENGTH_SHORT).show()
+            } else {
+                Toast.makeText(context, "Đã lưu sự kiện vào lịch!", Toast.LENGTH_SHORT).show()
+            }
         }
         onBack()
     }
@@ -357,9 +398,96 @@ fun AddEventScreen(
                 }
             }
 
+            // 3. Lặp lại trong tuần (7 ngày trong tuần)
+            if (eventId == null) {
+                Spacer(modifier = Modifier.height(18.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    SectionLabel("Lặp lại trong tuần")
+                    if (selectedDaysOfWeek.size > 1) {
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
+                        ) {
+                            Text(
+                                text = "${selectedDaysOfWeek.size} ngày được chọn",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                            )
+                        }
+                    }
+                }
+
+                Text(
+                    text = "Chọn các ngày trong tuần để tự động lặp lại sự kiện cùng khung giờ:",
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(bottom = 8.dp)
+                )
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    weekDaysList.forEach { (dayOfWeek, label) ->
+                        val isSelected = selectedDaysOfWeek.contains(dayOfWeek)
+                        val dayDate = currentWeekMonday.plusDays((dayOfWeek.value - 1).toLong())
+
+                        Surface(
+                            modifier = Modifier
+                                .weight(1f)
+                                .clip(RoundedCornerShape(10.dp))
+                                .clickable {
+                                    val newSet = if (isSelected) {
+                                        if (selectedDaysOfWeek.size > 1) selectedDaysOfWeek - dayOfWeek else selectedDaysOfWeek
+                                    } else {
+                                        selectedDaysOfWeek + dayOfWeek
+                                    }
+                                    selectedDaysOfWeek = newSet
+                                }
+                                .testTag("repeat_day_${dayOfWeek.name}"),
+                            shape = RoundedCornerShape(10.dp),
+                            color = when {
+                                isSelected -> MaterialTheme.colorScheme.primary
+                                else -> MaterialTheme.colorScheme.surface
+                            },
+                            border = androidx.compose.foundation.BorderStroke(
+                                1.dp,
+                                if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f)
+                            )
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(vertical = 8.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.Center
+                            ) {
+                                Text(
+                                    text = label,
+                                    fontSize = 13.sp,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                    color = if (isSelected) Color.White else if (dayOfWeek == DayOfWeek.SUNDAY) Color(0xFFE53935) else MaterialTheme.colorScheme.onSurface
+                                )
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    text = "${dayDate.dayOfMonth}",
+                                    fontSize = 11.sp,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                    color = if (isSelected) Color.White.copy(alpha = 0.9f) else MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
             Spacer(modifier = Modifier.height(18.dp))
 
-            // 3. Khung giờ
+            // 4. Khung giờ
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,

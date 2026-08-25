@@ -17,7 +17,4 @@
     
     <string name="widget_micro_name">Việc hôm nay - Gọn (2x0.5)</string>
     <string name="widget_micro_desc">Thanh 1 dòng hiển thị việc sắp tới và nút thêm nhanh.</string>
-    
-    <string name="widget_icon_name">Việc hôm nay - Biểu tượng (1x1)</string>
-    <string name="widget_icon_desc">Biểu tượng lịch kèm huy hiệu số công việc hôm nay.</string>
 </resources>

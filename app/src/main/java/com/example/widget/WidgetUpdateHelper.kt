@@ -50,12 +50,5 @@ object WidgetUpdateHelper {
         if (microIds.isNotEmpty()) {
             MicroScheduleWidgetProvider.updateAllWidgets(context, appWidgetManager, microIds)
         }
-
-        // Icon Widget
-        val iconComponent = ComponentName(context, IconScheduleWidgetProvider::class.java)
-        val iconIds = appWidgetManager.getAppWidgetIds(iconComponent)
-        if (iconIds.isNotEmpty()) {
-            IconScheduleWidgetProvider.updateAllWidgets(context, appWidgetManager, iconIds)
-        }
     }
 }
