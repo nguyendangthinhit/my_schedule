@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="20dp"
+    android:height="20dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:strokeColor="@color/widget_checkbox_border"
+        android:strokeWidth="1.8"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M5,3H19C20.105,3 21,3.895 21,5V19C21,20.105 20.105,21 19,21H5C3.895,21 3,20.105 3,19V5C3,3.895 3.895,3 5,3Z" />
+</vector>

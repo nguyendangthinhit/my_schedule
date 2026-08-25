@@ -1,0 +1,6 @@
+{
+  "name": "My_schedule",
+  "description": "Ứng dụng quản lý lịch trình cá nhân, công việc, nhắc hẹn",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

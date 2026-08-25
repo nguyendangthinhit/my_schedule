@@ -1,0 +1,273 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_medium_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/widget_bg_light"
+    android:orientation="vertical"
+    android:padding="12dp">
+
+    <!-- Header -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <ImageView
+            android:layout_width="18dp"
+            android:layout_height="18dp"
+            android:src="@drawable/ic_widget_calendar_header" />
+
+        <TextView
+            android:id="@+id/tv_medium_date"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:layout_weight="1"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:text="Thứ Hai, 25/08/2026"
+            android:textColor="@color/widget_text_primary_light"
+            android:textSize="13.5sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/tv_medium_weather"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginEnd="8dp"
+            android:background="@drawable/widget_weather_pill_bg_light"
+            android:paddingHorizontal="7dp"
+            android:paddingVertical="2dp"
+            android:text="☀️ 32°C • Nắng"
+            android:textColor="@color/widget_text_secondary_light"
+            android:textSize="10sp"
+            android:textStyle="bold" />
+
+        <ImageView
+            android:id="@+id/btn_medium_add"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:background="@drawable/widget_circle_add_btn_light"
+            android:clickable="true"
+            android:focusable="true"
+            android:padding="5dp"
+            android:src="@drawable/ic_widget_add" />
+    </LinearLayout>
+
+    <!-- Thẻ Tiếp theo -->
+    <LinearLayout
+        android:id="@+id/layout_medium_next"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="6dp"
+        android:background="@drawable/widget_next_card_bg_light"
+        android:clickable="true"
+        android:focusable="true"
+        android:orientation="vertical"
+        android:paddingHorizontal="10dp"
+        android:paddingVertical="6dp">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Tiếp theo"
+            android:textColor="@color/widget_primary_light_theme"
+            android:textSize="10sp"
+            android:textStyle="bold" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <TextView
+                android:id="@+id/tv_medium_next_title"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:text="Học tiếng Anh"
+                android:textColor="@color/widget_text_primary_light"
+                android:textSize="13sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/tv_medium_next_category"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="6dp"
+                android:background="@drawable/widget_category_chip_bg_light"
+                android:paddingHorizontal="7dp"
+                android:paddingVertical="2dp"
+                android:text="Học tập"
+                android:textColor="@color/widget_badge_study_text_light"
+                android:textSize="9.5sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <ImageView
+                android:layout_width="10dp"
+                android:layout_height="10dp"
+                android:src="@drawable/ic_widget_clock" />
+
+            <TextView
+                android:id="@+id/tv_medium_next_time"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="4dp"
+                android:text="08:40 - 10:30"
+                android:textColor="@color/widget_text_secondary_light"
+                android:textSize="10sp" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <!-- Empty state -->
+    <TextView
+        android:id="@+id/tv_medium_empty"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:gravity="center"
+        android:text="Không có công việc nào 🎉"
+        android:textColor="@color/widget_text_secondary_light"
+        android:textSize="11.5sp"
+        android:visibility="gone" />
+
+    <!-- Danh sách 2 việc -->
+    <LinearLayout
+        android:id="@+id/layout_medium_tasks_container"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_marginTop="4dp"
+        android:layout_weight="1"
+        android:orientation="vertical">
+
+        <!-- Task 1 -->
+        <LinearLayout
+            android:id="@+id/layout_medium_task_1"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <ImageView
+                android:id="@+id/iv_medium_check_1"
+                android:layout_width="16dp"
+                android:layout_height="16dp"
+                android:src="@drawable/ic_widget_check_square_empty" />
+
+            <TextView
+                android:id="@+id/tv_medium_task_1"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="7dp"
+                android:layout_weight="1"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:text="Học tiếng Anh"
+                android:textColor="@color/widget_text_primary_light"
+                android:textSize="12sp" />
+
+            <TextView
+                android:id="@+id/tv_medium_time_1"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="6dp"
+                android:text="08:40 - 10:30"
+                android:textColor="@color/widget_text_secondary_light"
+                android:textSize="10.5sp" />
+
+            <ImageView
+                android:id="@+id/iv_medium_dot_1"
+                android:layout_width="6.5dp"
+                android:layout_height="6.5dp"
+                android:src="@drawable/widget_dot_green" />
+        </LinearLayout>
+
+        <!-- Task 2 -->
+        <LinearLayout
+            android:id="@+id/layout_medium_task_2"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <ImageView
+                android:id="@+id/iv_medium_check_2"
+                android:layout_width="16dp"
+                android:layout_height="16dp"
+                android:src="@drawable/ic_widget_check_square_empty" />
+
+            <TextView
+                android:id="@+id/tv_medium_task_2"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="7dp"
+                android:layout_weight="1"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:text="Ăn cơm"
+                android:textColor="@color/widget_text_primary_light"
+                android:textSize="12sp" />
+
+            <TextView
+                android:id="@+id/tv_medium_time_2"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="6dp"
+                android:text="11:00 - 12:00"
+                android:textColor="@color/widget_text_secondary_light"
+                android:textSize="10.5sp" />
+
+            <ImageView
+                android:id="@+id/iv_medium_dot_2"
+                android:layout_width="6.5dp"
+                android:layout_height="6.5dp"
+                android:src="@drawable/widget_dot_blue" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <!-- Footer -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="2dp"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <TextView
+            android:id="@+id/tv_medium_footer"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="0/2 đã hoàn thành"
+            android:textColor="@color/widget_text_secondary_light"
+            android:textSize="11sp" />
+
+        <TextView
+            android:id="@+id/btn_medium_view_all"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:clickable="true"
+            android:focusable="true"
+            android:text="Xem tất cả ›"
+            android:textColor="@color/widget_primary_light_theme"
+            android:textSize="11sp"
+            android:textStyle="bold" />
+    </LinearLayout>
+
+</LinearLayout>

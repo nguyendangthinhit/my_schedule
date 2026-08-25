@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_icon_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/widget_bg"
+    android:clickable="true"
+    android:focusable="true"
+    android:padding="8dp">
+
+    <!-- Center Calendar Icon -->
+    <ImageView
+        android:layout_width="32dp"
+        android:layout_height="32dp"
+        android:layout_gravity="center"
+        android:src="@drawable/ic_widget_calendar_header" />
+
+    <!-- Top Right Count Badge -->
+    <TextView
+        android:id="@+id/tv_icon_badge_count"
+        android:layout_width="20dp"
+        android:layout_height="20dp"
+        android:layout_gravity="top|end"
+        android:background="@drawable/widget_icon_badge_bg"
+        android:gravity="center"
+        android:text="2"
+        android:textColor="@color/widget_btn_text"
+        android:textSize="11sp"
+        android:textStyle="bold" />
+
+</FrameLayout>

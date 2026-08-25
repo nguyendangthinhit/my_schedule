@@ -1,0 +1,129 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- 1. Ambient Drop Shadow under Calendar -->
+    <path
+        android:fillColor="#381D0754"
+        android:pathData="M33,32 h42 c5.5,0 10,4.5 10,10 v38 c0,5.5 -4.5,10 -10,10 h-42 c-5.5,0 -10,-4.5 -10,-10 v-38 c0,-5.5 4.5,-10 10,-10 z" />
+
+    <!-- 2. Direct Drop Shadow under Calendar -->
+    <path
+        android:fillColor="#2214043D"
+        android:pathData="M33,30.5 h42 c5.5,0 10,4.5 10,10 v38 c0,5.5 -4.5,10 -10,10 h-42 c-5.5,0 -10,-4.5 -10,-10 v-38 c0,-5.5 4.5,-10 10,-10 z" />
+
+    <!-- 3. Calendar Body Base (Bottom 3D Bevel/Shade) -->
+    <path
+        android:fillColor="#E8E4F3"
+        android:pathData="M33,28 h42 c5.5,0 10,4.5 10,10 v38 c0,5.5 -4.5,10 -10,10 h-42 c-5.5,0 -10,-4.5 -10,-10 v-38 c0,-5.5 4.5,-10 10,-10 z" />
+
+    <!-- 4. Calendar Main Sheet (Pure Crisp White) -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M33,27.5 h42 c5.5,0 10,4.5 10,10 v36.5 c0,5.5 -4.5,10 -10,10 h-42 c-5.5,0 -10,-4.5 -10,-10 v-36.5 c0,-5.5 4.5,-10 10,-10 z" />
+
+    <!-- 5. Purple Top Header (Claymorphism Header Band) -->
+    <path
+        android:fillColor="#8754F2"
+        android:pathData="M33,27.5 h42 c5.5,0 10,4.5 10,10 v6 h-62 v-6 c0,-5.5 4.5,-10 10,-10 z" />
+
+    <!-- Header Subtle Top Highlight -->
+    <path
+        android:fillColor="#9F76F9"
+        android:pathData="M33,27.5 h42 c5.5,0 10,4.5 10,10 v2 h-62 v-2 c0,-5.5 4.5,-10 10,-10 z" />
+
+    <!-- 6. Binder Rings (White 3D Loops) -->
+    <!-- Left Loop Shadow -->
+    <path
+        android:fillColor="#331A0548"
+        android:pathData="M41,21.5 h6.5 c1.8,0 3.25,1.45 3.25,3.25 v7.5 c0,1.8 -1.45,3.25 -3.25,3.25 h-6.5 c-1.8,0 -3.25,-1.45 -3.25,-3.25 v-7.5 c0,-1.8 1.45,-3.25 3.25,-3.25 z" />
+
+    <!-- Left Loop (White 3D Pill) -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M41,20 h6.5 c1.8,0 3.25,1.45 3.25,3.25 v7.5 c0,1.8 -1.45,3.25 -3.25,3.25 h-6.5 c-1.8,0 -3.25,-1.45 -3.25,-3.25 v-7.5 c0,-1.8 1.45,-3.25 3.25,-3.25 z" />
+
+    <!-- Left Loop Right Shading -->
+    <path
+        android:fillColor="#DDD8EA"
+        android:pathData="M45,20 h2.5 c1.8,0 3.25,1.45 3.25,3.25 v7.5 c0,1.8 -1.45,3.25 -3.25,3.25 h-2.5 z" />
+
+    <!-- Right Loop Shadow -->
+    <path
+        android:fillColor="#331A0548"
+        android:pathData="M60.5,21.5 h6.5 c1.8,0 3.25,1.45 3.25,3.25 v7.5 c0,1.8 -1.45,3.25 -3.25,3.25 h-6.5 c-1.8,0 -3.25,-1.45 -3.25,-3.25 v-7.5 c0,-1.8 1.45,-3.25 3.25,-3.25 z" />
+
+    <!-- Right Loop (White 3D Pill) -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M60.5,20 h6.5 c1.8,0 3.25,1.45 3.25,3.25 v7.5 c0,1.8 -1.45,3.25 -3.25,3.25 h-6.5 c-1.8,0 -3.25,-1.45 -3.25,-3.25 v-7.5 c0,-1.8 1.45,-3.25 3.25,-3.25 z" />
+
+    <!-- Right Loop Right Shading -->
+    <path
+        android:fillColor="#DDD8EA"
+        android:pathData="M64.5,20 h2.5 c1.8,0 3.25,1.45 3.25,3.25 v7.5 c0,1.8 -1.45,3.25 -3.25,3.25 h-2.5 z" />
+
+    <!-- 7. Task Rows on Calendar Page -->
+    <!-- Row 1: Purple Chip & Horizontal Pill -->
+    <path
+        android:fillColor="#8D5DF4"
+        android:pathData="M38.5,46 h5.5 c0.8,0 1.5,0.7 1.5,1.5 v2.2 c0,0.8 -0.7,1.5 -1.5,1.5 h-5.5 c-0.8,0 -1.5,-0.7 -1.5,-1.5 v-2.2 c0,-0.8 0.7,-1.5 1.5,-1.5 z" />
+    <path
+        android:fillColor="#A27BF8"
+        android:pathData="M48.5,46 h22.5 c1.4,0 2.6,1.2 2.6,2.6 v0 c0,1.4 -1.2,2.6 -2.6,2.6 h-22.5 c-1.4,0 -2.6,-1.2 -2.6,-2.6 v0 c0,-1.4 1.2,-2.6 2.6,-2.6 z" />
+
+    <!-- Row 2: Blue Chip & Horizontal Pill -->
+    <path
+        android:fillColor="#3B86F7"
+        android:pathData="M38.5,55 h5.5 c0.8,0 1.5,0.7 1.5,1.5 v2.2 c0,0.8 -0.7,1.5 -1.5,1.5 h-5.5 c-0.8,0 -1.5,-0.7 -1.5,-1.5 v-2.2 c0,-0.8 0.7,-1.5 1.5,-1.5 z" />
+    <path
+        android:fillColor="#5BA2F9"
+        android:pathData="M48.5,55 h16.5 c1.4,0 2.6,1.2 2.6,2.6 v0 c0,1.4 -1.2,2.6 -2.6,2.6 h-16.5 c-1.4,0 -2.6,-1.2 -2.6,-2.6 v0 c0,-1.4 1.2,-2.6 2.6,-2.6 z" />
+
+    <!-- Row 3: Green Chip & Horizontal Pill -->
+    <path
+        android:fillColor="#3CD070"
+        android:pathData="M38.5,64 h5.5 c0.8,0 1.5,0.7 1.5,1.5 v2.2 c0,0.8 -0.7,1.5 -1.5,1.5 h-5.5 c-0.8,0 -1.5,-0.7 -1.5,-1.5 v-2.2 c0,-0.8 0.7,-1.5 1.5,-1.5 z" />
+    <path
+        android:fillColor="#6EE69B"
+        android:pathData="M48.5,64 h12 c1.4,0 2.6,1.2 2.6,2.6 v0 c0,1.4 -1.2,2.6 -2.6,2.6 h-12 c-1.4,0 -2.6,-1.2 -2.6,-2.6 v0 c0,-1.4 1.2,-2.6 2.6,-2.6 z" />
+
+    <!-- 8. Floating Checkmark Badge (Bottom Right) -->
+    <!-- Badge Soft Ambient Shadow -->
+    <path
+        android:fillColor="#4D1D0652"
+        android:pathData="M68.5,70 m-12,0 a12,12 0 1,0 24,0 a12,12 0 1,0 -24,0" />
+
+    <!-- Badge Sharp Drop Shadow -->
+    <path
+        android:fillColor="#3314033C"
+        android:pathData="M68.5,68.5 m-11.5,0 a11.5,11.5 0 1,0 23,0 a11.5,11.5 0 1,0 -23,0" />
+
+    <!-- Badge Base Bevel -->
+    <path
+        android:fillColor="#6C39DC"
+        android:pathData="M68.5,67.5 m-11,0 a11,11 0 1,0 22,0 a11,11 0 1,0 -22,0" />
+
+    <!-- Badge Circle (Purple 3D Clay Body) -->
+    <path
+        android:fillColor="#8451F1"
+        android:pathData="M68.5,66.5 m-10.5,0 a10.5,10.5 0 1,0 21,0 a10.5,10.5 0 1,0 -21,0" />
+
+    <!-- Badge Upper Highlight -->
+    <path
+        android:fillColor="#9C6EF9"
+        android:pathData="M68.5,66.5 m-9.5,0 a9.5,9.5 0 0,1 19,0 a9.5,9.5 0 0,0 -19,0" />
+
+    <!-- Badge Bold White Checkmark -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="2.5"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M63.5,67.2 L67,70.5 L73.5,63.2" />
+
+</vector>

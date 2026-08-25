@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_micro_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/widget_bg_light"
+    android:clickable="true"
+    android:focusable="true"
+    android:gravity="center_vertical"
+    android:orientation="horizontal"
+    android:paddingHorizontal="12dp"
+    android:paddingVertical="6dp">
+
+    <ImageView
+        android:layout_width="22dp"
+        android:layout_height="22dp"
+        android:src="@drawable/ic_widget_calendar_header" />
+
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="9dp"
+        android:layout_weight="1"
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/tv_micro_date"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:text="Thứ Hai, 25/08"
+            android:textColor="@color/widget_primary_light_theme"
+            android:textSize="10.5sp"
+            android:textStyle="bold" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="1dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <TextView
+                android:id="@+id/tv_micro_title"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:text="Học tiếng Anh"
+                android:textColor="@color/widget_text_primary_light"
+                android:textSize="12sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/tv_micro_time"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="4dp"
+                android:text="08:40"
+                android:textColor="@color/widget_text_secondary_light"
+                android:textSize="10sp" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <ImageView
+        android:id="@+id/btn_micro_add"
+        android:layout_width="22dp"
+        android:layout_height="22dp"
+        android:layout_marginStart="8dp"
+        android:background="@drawable/widget_circle_add_btn_light"
+        android:clickable="true"
+        android:focusable="true"
+        android:padding="4dp"
+        android:src="@drawable/ic_widget_add" />
+
+</LinearLayout>

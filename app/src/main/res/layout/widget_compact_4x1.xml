@@ -1,0 +1,236 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_compact_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/widget_bg_light"
+    android:baselineAligned="false"
+    android:orientation="horizontal"
+    android:padding="8dp">
+
+    <!-- Cột Trái: Thông tin ngày + Thời tiết + Thẻ Tiếp theo -->
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_marginEnd="6dp"
+        android:layout_weight="1.3"
+        android:orientation="vertical">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <ImageView
+                android:layout_width="14dp"
+                android:layout_height="14dp"
+                android:src="@drawable/ic_widget_calendar_header" />
+
+            <TextView
+                android:id="@+id/tv_compact_date"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="4dp"
+                android:layout_weight="1"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:text="Thứ Hai, 25/08/2026"
+                android:textColor="@color/widget_text_primary_light"
+                android:textSize="11sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/tv_compact_weather"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="4dp"
+                android:background="@drawable/widget_weather_pill_bg_light"
+                android:paddingHorizontal="4dp"
+                android:paddingVertical="1dp"
+                android:text="☀️ 32°C"
+                android:textColor="@color/widget_text_secondary_light"
+                android:textSize="9sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+        <!-- Thẻ Tiếp theo compact -->
+        <LinearLayout
+            android:id="@+id/layout_compact_next"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_marginTop="3dp"
+            android:layout_weight="1"
+            android:background="@drawable/widget_next_card_bg_light"
+            android:clickable="true"
+            android:focusable="true"
+            android:gravity="center_vertical"
+            android:orientation="vertical"
+            android:paddingHorizontal="7dp"
+            android:paddingVertical="3dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Tiếp theo"
+                android:textColor="@color/widget_primary_light_theme"
+                android:textSize="8.5sp"
+                android:textStyle="bold" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:id="@+id/tv_compact_next_title"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:ellipsize="end"
+                    android:maxLines="1"
+                    android:text="Học tiếng Anh"
+                    android:textColor="@color/widget_text_primary_light"
+                    android:textSize="11.5sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/tv_compact_next_category"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="4dp"
+                    android:background="@drawable/widget_category_chip_bg_light"
+                    android:paddingHorizontal="5dp"
+                    android:paddingVertical="1dp"
+                    android:text="Học tập"
+                    android:textColor="@color/widget_badge_study_text_light"
+                    android:textSize="8sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="1dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <ImageView
+                    android:layout_width="8dp"
+                    android:layout_height="8dp"
+                    android:src="@drawable/ic_widget_clock" />
+
+                <TextView
+                    android:id="@+id/tv_compact_next_time"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="3dp"
+                    android:text="08:40 - 12:30"
+                    android:textColor="@color/widget_text_secondary_light"
+                    android:textSize="9sp" />
+            </LinearLayout>
+        </LinearLayout>
+    </LinearLayout>
+
+    <!-- Cột Phải: Danh sách việc + Nút + -->
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_marginStart="4dp"
+        android:layout_weight="1.1"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <LinearLayout
+            android:id="@+id/layout_compact_tasks_container"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:gravity="center_vertical"
+            android:orientation="vertical">
+
+            <!-- Task 1 -->
+            <LinearLayout
+                android:id="@+id/layout_compact_task_1"
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <ImageView
+                    android:id="@+id/iv_compact_check_1"
+                    android:layout_width="14dp"
+                    android:layout_height="14dp"
+                    android:src="@drawable/ic_widget_check_square_empty" />
+
+                <TextView
+                    android:id="@+id/tv_compact_task_1"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="4dp"
+                    android:layout_weight="1"
+                    android:ellipsize="end"
+                    android:maxLines="1"
+                    android:text="Học tiếng Anh"
+                    android:textColor="@color/widget_text_primary_light"
+                    android:textSize="11sp" />
+
+                <ImageView
+                    android:id="@+id/iv_compact_dot_1"
+                    android:layout_width="6dp"
+                    android:layout_height="6dp"
+                    android:layout_marginStart="3dp"
+                    android:src="@drawable/widget_dot_green" />
+            </LinearLayout>
+
+            <!-- Task 2 -->
+            <LinearLayout
+                android:id="@+id/layout_compact_task_2"
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <ImageView
+                    android:id="@+id/iv_compact_check_2"
+                    android:layout_width="14dp"
+                    android:layout_height="14dp"
+                    android:src="@drawable/ic_widget_check_square_empty" />
+
+                <TextView
+                    android:id="@+id/tv_compact_task_2"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="4dp"
+                    android:layout_weight="1"
+                    android:ellipsize="end"
+                    android:maxLines="1"
+                    android:text="Ăn cơm"
+                    android:textColor="@color/widget_text_primary_light"
+                    android:textSize="11sp" />
+
+                <ImageView
+                    android:id="@+id/iv_compact_dot_2"
+                    android:layout_width="6dp"
+                    android:layout_height="6dp"
+                    android:layout_marginStart="3dp"
+                    android:src="@drawable/widget_dot_blue" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <ImageView
+            android:id="@+id/btn_compact_add"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:layout_marginStart="6dp"
+            android:background="@drawable/widget_circle_add_btn_light"
+            android:clickable="true"
+            android:focusable="true"
+            android:padding="4dp"
+            android:src="@drawable/ic_widget_add" />
+    </LinearLayout>
+
+</LinearLayout>

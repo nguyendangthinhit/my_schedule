@@ -1,0 +1,23 @@
+<resources>
+    <string name="app_name">My_schedule</string>
+    <string name="widget_large_name">Việc hôm nay - Lớn (4x2)</string>
+    <string name="widget_large_desc">Thẻ tiếp theo, danh sách 4 công việc và số lượng hoàn thành.</string>
+    
+    <string name="widget_medium_name">Việc hôm nay - Tiêu chuẩn (4x1.5)</string>
+    <string name="widget_medium_desc">Thẻ tiếp theo và danh sách 2 công việc gần nhất.</string>
+    
+    <string name="widget_small_name">Việc hôm nay - Vuông (2x2)</string>
+    <string name="widget_small_desc">Khung vuông 2x2: sự kiện tiếp theo và 2 việc làm nhanh.</string>
+    
+    <string name="widget_compact_name">Việc hôm nay - Ngang (4x1)</string>
+    <string name="widget_compact_desc">Bố cục ngang chia 2 cột với sự kiện tiếp theo và 2 việc.</string>
+    
+    <string name="widget_mini_name">Việc hôm nay - Nhỏ (2x1)</string>
+    <string name="widget_mini_desc">Header việc hôm nay và thẻ sự kiện sắp diễn ra.</string>
+    
+    <string name="widget_micro_name">Việc hôm nay - Gọn (2x0.5)</string>
+    <string name="widget_micro_desc">Thanh 1 dòng hiển thị việc sắp tới và nút thêm nhanh.</string>
+    
+    <string name="widget_icon_name">Việc hôm nay - Biểu tượng (1x1)</string>
+    <string name="widget_icon_desc">Biểu tượng lịch kèm huy hiệu số công việc hôm nay.</string>
+</resources>

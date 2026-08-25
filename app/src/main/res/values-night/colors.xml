@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="purple_200">#FFBB86FC</color>
+    <color name="purple_500">#FF818CF8</color>
+    <color name="purple_700">#FF3730A3</color>
+    <color name="teal_200">#FF03DAC5</color>
+    <color name="teal_700">#FF018786</color>
+    <color name="black">#FF000000</color>
+    <color name="white">#FFFFFFFF</color>
+
+    <!-- App & Widget Theme Colors (Dark Palette) -->
+    <color name="widget_bg">#FF0F172A</color>
+    <color name="widget_outer_border">#FF334155</color>
+    <color name="widget_card_bg">#FF1E293B</color>
+    <color name="widget_card_border">#FF334155</color>
+    <color name="widget_highlight_bg">#FF1E1B4B</color>
+    <color name="widget_highlight_border">#FF6366F1</color>
+    <color name="widget_primary">#FF818CF8</color>
+    <color name="widget_primary_light">#FF3730A3</color>
+    <color name="widget_primary_pressed">#FF6366F1</color>
+    <color name="widget_accent_badge">#FF818CF8</color>
+    <color name="widget_accent_badge_text">#FF0F172A</color>
+    <color name="widget_text_primary">#FFF8FAFC</color>
+    <color name="widget_text_secondary">#FF94A3B8</color>
+    <color name="widget_text_dim">#FF64748B</color>
+    <color name="widget_divider">#FF334155</color>
+    <color name="widget_chip_bg">#FF334155</color>
+    <color name="widget_checkbox_checked">#FF818CF8</color>
+    <color name="widget_checkbox_border">#FF6366F1</color>
+    <color name="widget_btn_text">#FFFFFFFF</color>
+    <color name="widget_badge_study_bg">#FF064E3B</color>
+    <color name="widget_badge_study_text">#FF6EE7B7</color>
+    <color name="widget_badge_work_bg">#FF312E81</color>
+    <color name="widget_badge_work_text">#FFA5B4FC</color>
+    <color name="widget_badge_personal_bg">#FF451A03</color>
+    <color name="widget_badge_personal_text">#FFFCD34D</color>
+    <color name="widget_category_work">#FF60A5FA</color>
+    <color name="widget_category_study">#FF4ADE80</color>
+    <color name="widget_category_meeting">#FFFBBF24</color>
+    <color name="widget_category_play">#FF22D3EE</color>
+    <color name="widget_category_holiday">#FFF87171</color>
+</resources>

@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="20dp"
+    android:height="20dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <!-- Outer calendar rounded box -->
+    <path
+        android:strokeColor="@color/widget_primary"
+        android:strokeWidth="1.8"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M19,4H5C3.895,4 3,4.895 3,6v14c0,1.105 0.895,2 2,2h14c1.105,0 2,-0.895 2,-2V6C21,4.895 20.105,4 19,4z" />
+    <!-- Top binder rings -->
+    <path
+        android:strokeColor="@color/widget_primary"
+        android:strokeWidth="1.8"
+        android:strokeLineCap="round"
+        android:pathData="M16,2v4 M8,2v4" />
+    <!-- Header separator line -->
+    <path
+        android:strokeColor="@color/widget_primary"
+        android:strokeWidth="1.8"
+        android:strokeLineCap="round"
+        android:pathData="M3,10h18" />
+    <!-- Inside checkmark or dot indicator -->
+    <path
+        android:strokeColor="@color/widget_primary"
+        android:strokeWidth="1.8"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M8.5,15l2.5,2.5l5,-5" />
+</vector>
