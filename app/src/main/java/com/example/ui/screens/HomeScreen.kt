@@ -306,24 +306,6 @@ fun HeaderDateSection(
                     }
                 }
             }
-
-            Surface(
-                shape = RoundedCornerShape(12.dp),
-                color = MaterialTheme.colorScheme.surface,
-                border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)),
-                shadowElevation = 1.dp
-            ) {
-                Box(
-                    modifier = Modifier.size(44.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        Icons.Default.Notifications,
-                        contentDescription = "Notifications",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
         }
 
         // Banner Ngày Lễ nếu có
