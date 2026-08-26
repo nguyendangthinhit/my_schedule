@@ -304,54 +304,20 @@ private fun AIStudyPlannerFormView(
                 )
             )
         },
-        bottomBar = {
-            Surface(
-                color = MaterialTheme.colorScheme.surface,
-                shadowElevation = 8.dp
-            ) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 10.dp)
-                ) {
-                    Button(
-                        onClick = onGeneratePlan,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(50.dp)
-                            .testTag("btn_generate_ai_plan"),
-                        shape = RoundedCornerShape(25.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                Icons.Default.AutoAwesome,
-                                contentDescription = null,
-                                modifier = Modifier.size(20.dp),
-                                tint = Color.White
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                text = "Tạo kế hoạch với AI",
-                                fontSize = 15.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Color.White
-                            )
-                        }
-                    }
-                }
-            }
-        },
         containerColor = MaterialTheme.colorScheme.background
     ) { innerPadding ->
-        LazyColumn(
+        Box(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .padding(horizontal = 16.dp),
-            contentPadding = PaddingValues(top = 8.dp, bottom = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(18.dp)
         ) {
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 16.dp),
+                contentPadding = PaddingValues(top = 8.dp, bottom = 90.dp),
+                verticalArrangement = Arrangement.spacedBy(18.dp)
+            ) {
                 // 1. Mục tiêu học tập
                 item {
                     Text(
@@ -559,8 +525,36 @@ private fun AIStudyPlannerFormView(
                     }
                 }
             }
+
+            // Button with full text "Tạo kế hoạch với AI"
+            ExtendedFloatingActionButton(
+                onClick = onGeneratePlan,
+                containerColor = MaterialTheme.colorScheme.primary,
+                contentColor = MaterialTheme.colorScheme.onPrimary,
+                shape = RoundedCornerShape(24.dp),
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(bottom = 16.dp)
+                    .testTag("btn_generate_ai_plan"),
+                elevation = FloatingActionButtonDefaults.elevation(defaultElevation = 4.dp),
+                icon = {
+                    Icon(
+                        Icons.Default.AutoAwesome,
+                        contentDescription = null,
+                        modifier = Modifier.size(20.dp)
+                    )
+                },
+                text = {
+                    Text(
+                        text = "Tạo kế hoạch với AI",
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            )
         }
     }
+}
 
 @Composable
 private fun StudyTaskCard(
@@ -1016,7 +1010,7 @@ private fun AIStudyPlannerAdjustingView(
             Surface(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(bottom = 12.dp),
+                    .padding(bottom = 24.dp),
                 shape = RoundedCornerShape(16.dp),
                 color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f)
             ) {
@@ -1127,7 +1121,7 @@ private fun AIStudyPlannerResultView(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 10.dp)
+                        .padding(horizontal = 20.dp, vertical = 14.dp)
                 ) {
                     Button(
                         onClick = {
@@ -1173,8 +1167,8 @@ private fun AIStudyPlannerResultView(
                         },
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(50.dp),
-                        shape = RoundedCornerShape(25.dp),
+                            .height(52.dp),
+                        shape = RoundedCornerShape(26.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -1352,7 +1346,7 @@ private fun AIStudyPlannerResultView(
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
                     verticalArrangement = Arrangement.spacedBy(12.dp),
-                    contentPadding = PaddingValues(bottom = 12.dp)
+                    contentPadding = PaddingValues(bottom = 20.dp)
                 ) {
                     items(currentDayItems, key = { it.id }) { item ->
                         TimelineItemRow(
