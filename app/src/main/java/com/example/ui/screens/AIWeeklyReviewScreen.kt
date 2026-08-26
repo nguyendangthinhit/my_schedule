@@ -67,6 +67,7 @@ fun AIWeeklyReviewScreen(
     var inputPrompt by remember { mutableStateOf("") }
 
     Scaffold(
+        contentWindowInsets = WindowInsets(0.dp),
         topBar = {
             TopAppBar(
                 title = {
@@ -134,7 +135,7 @@ fun AIWeeklyReviewScreen(
                         .fillMaxSize()
                         .padding(innerPadding)
                         .padding(horizontal = 16.dp),
-                    contentPadding = PaddingValues(top = 8.dp, bottom = 48.dp),
+                    contentPadding = PaddingValues(top = 8.dp, bottom = 16.dp),
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
                     // Header Avatar AI

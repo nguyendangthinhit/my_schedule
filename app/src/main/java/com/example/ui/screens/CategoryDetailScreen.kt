@@ -45,6 +45,7 @@ fun CategoryDetailScreen(
     val uiState by viewModel.categoryDetailState.collectAsState()
 
     Scaffold(
+        contentWindowInsets = WindowInsets(0.dp),
         topBar = {
             TopAppBar(
                 title = {
@@ -194,7 +195,7 @@ fun CategoryDetailContent(data: CategoryDetailData) {
         modifier = Modifier
             .fillMaxSize()
             .padding(horizontal = 16.dp),
-        contentPadding = PaddingValues(top = 8.dp, bottom = 40.dp),
+        contentPadding = PaddingValues(top = 8.dp, bottom = 16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         // Card 1: Category Completion & Weekly Bar Chart

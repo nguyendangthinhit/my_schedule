@@ -111,121 +111,116 @@ fun AIScreen(
         "💡 Lập lịch trình ngày mai"
     )
 
-    Scaffold(
-        topBar = {
-            Surface(
-                color = MaterialTheme.colorScheme.surface,
-                shadowElevation = 2.dp
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
+            .imePadding()
+    ) {
+        // Top Bar
+        Surface(
+            color = MaterialTheme.colorScheme.surface,
+            shadowElevation = 2.dp
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 10.dp)
             ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .statusBarsPadding()
-                        .padding(horizontal = 16.dp, vertical = 10.dp)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.weight(1f)
                     ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.weight(1f)
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(40.dp)
-                                    .clip(CircleShape)
-                                    .background(
-                                        Brush.linearGradient(
-                                            listOf(
-                                                MaterialTheme.colorScheme.primary,
-                                                MaterialTheme.colorScheme.tertiary.takeIf { it != MaterialTheme.colorScheme.primary } ?: Color(0xFF8B5CF6)
-                                            )
+                        Box(
+                            modifier = Modifier
+                                .size(40.dp)
+                                .clip(CircleShape)
+                                .background(
+                                    Brush.linearGradient(
+                                        listOf(
+                                            MaterialTheme.colorScheme.primary,
+                                            MaterialTheme.colorScheme.tertiary.takeIf { it != MaterialTheme.colorScheme.primary } ?: Color(0xFF8B5CF6)
                                         )
-                                    ),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    Icons.Default.SmartToy,
-                                    contentDescription = "AI Assistant",
-                                    tint = Color.White,
-                                    modifier = Modifier.size(22.dp)
-                                )
-                            }
-
-                            Spacer(modifier = Modifier.width(12.dp))
-
-                            Column {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Text(
-                                        text = "Trợ lý AI Lịch Trình",
-                                        fontWeight = FontWeight.Bold,
-                                        fontSize = 17.sp,
-                                        color = MaterialTheme.colorScheme.onSurface
                                     )
-                                    Spacer(modifier = Modifier.width(6.dp))
-                                    Surface(
-                                        shape = RoundedCornerShape(6.dp),
-                                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
-                                    ) {
-                                        Text(
-                                            text = "Gemini 3.5 Flash Lite",
-                                            fontSize = 10.sp,
-                                            fontWeight = FontWeight.SemiBold,
-                                            color = MaterialTheme.colorScheme.primary,
-                                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                                        )
-                                    }
-                                }
-                                Text(
-                                    text = if (isLoading) "Đang suy nghĩ & phân bổ lịch..." else "Gợi ý & tự động điền lịch trình",
-                                    fontSize = 11.sp,
-                                    color = if (isLoading) MaterialTheme.colorScheme.primary else Color(0xFF10B981)
-                                )
-                            }
+                                ),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                Icons.Default.SmartToy,
+                                contentDescription = "AI Assistant",
+                                tint = Color.White,
+                                modifier = Modifier.size(22.dp)
+                            )
                         }
 
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            // API Key status/config button
-                            IconButton(
-                                onClick = {
-                                    tempApiKeyInput = customApiKey
-                                    showApiKeyDialog = true
-                                },
-                                modifier = Modifier.testTag("btn_ai_api_key")
-                            ) {
-                                Icon(
-                                    Icons.Default.Key,
-                                    contentDescription = "Cấu hình API Key",
-                                    tint = if (hasApiKey) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
-                                )
-                            }
+                        Spacer(modifier = Modifier.width(12.dp))
 
-                            // Clear chat button
-                            IconButton(
-                                onClick = { aiViewModel.clearHistory() },
-                                modifier = Modifier.testTag("btn_clear_chat")
-                            ) {
-                                Icon(
-                                    Icons.Default.Refresh,
-                                    contentDescription = "Làm mới hội thoại",
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        Column {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    text = "Trợ lý AI Lịch Trình",
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 17.sp,
+                                    color = MaterialTheme.colorScheme.onSurface
                                 )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Surface(
+                                    shape = RoundedCornerShape(6.dp),
+                                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
+                                ) {
+                                    Text(
+                                        text = "Gemini 3.5 Flash Lite",
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                    )
+                                }
                             }
+                            Text(
+                                text = if (isLoading) "Đang suy nghĩ & phân bổ lịch..." else "Gợi ý & tự động điền lịch trình",
+                                fontSize = 11.sp,
+                                color = if (isLoading) MaterialTheme.colorScheme.primary else Color(0xFF10B981)
+                            )
+                        }
+                    }
+
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        // API Key status/config button
+                        IconButton(
+                            onClick = {
+                                tempApiKeyInput = customApiKey
+                                showApiKeyDialog = true
+                            },
+                            modifier = Modifier.testTag("btn_ai_api_key")
+                        ) {
+                            Icon(
+                                Icons.Default.Key,
+                                contentDescription = "Cấu hình API Key",
+                                tint = if (hasApiKey) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
+                            )
+                        }
+
+                        // Clear chat button
+                        IconButton(
+                            onClick = { aiViewModel.clearHistory() },
+                            modifier = Modifier.testTag("btn_clear_chat")
+                        ) {
+                            Icon(
+                                Icons.Default.Refresh,
+                                contentDescription = "Làm mới hội thoại",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
                         }
                     }
                 }
             }
-        },
-        containerColor = MaterialTheme.colorScheme.background
-    ) { innerPadding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-                .imePadding()
-        ) {
+        }
             // Missing API Key warning banner
             if (!hasApiKey) {
                 Surface(
@@ -437,7 +432,6 @@ fun AIScreen(
                 }
             }
         }
-    }
 
     // Dialog configuration API Key
     if (showApiKeyDialog) {

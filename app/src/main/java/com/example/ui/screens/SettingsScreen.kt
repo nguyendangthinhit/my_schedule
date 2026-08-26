@@ -79,8 +79,8 @@ fun SettingsScreen(viewModel: ScheduleViewModel) {
         modifier = Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
-            .padding(16.dp),
-        contentPadding = PaddingValues(top = 16.dp, bottom = 60.dp)
+            .padding(horizontal = 16.dp),
+        contentPadding = PaddingValues(top = 16.dp, bottom = 16.dp)
     ) {
         // Header
         item {

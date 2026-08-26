@@ -46,15 +46,15 @@ fun DashboardOverviewScreen(
     val selectedPeriod by viewModel.selectedPeriod.collectAsState()
     val categories by viewModel.categories.collectAsState()
 
-    Scaffold(
-        containerColor = MaterialTheme.colorScheme.background
-    ) { innerPadding ->
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
+    ) {
         when (val state = uiState) {
             is DashboardOverviewUiState.Loading -> {
                 Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(innerPadding),
+                    modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
                 ) {
                     CircularProgressIndicator(color = Color(0xFF6366F1))
@@ -62,9 +62,7 @@ fun DashboardOverviewScreen(
             }
             is DashboardOverviewUiState.Error -> {
                 Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(innerPadding),
+                    modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
@@ -83,8 +81,7 @@ fun DashboardOverviewScreen(
                     onPrevPeriod = { viewModel.previousPeriod() },
                     onNextPeriod = { viewModel.nextPeriod() },
                     onNavigateToCategoryDetail = onNavigateToCategoryDetail,
-                    onNavigateToAIWeeklyReview = onNavigateToAIWeeklyReview,
-                    modifier = Modifier.padding(innerPadding)
+                    onNavigateToAIWeeklyReview = onNavigateToAIWeeklyReview
                 )
             }
         }
@@ -107,7 +104,7 @@ fun DashboardOverviewContent(
         modifier = modifier
             .fillMaxSize()
             .padding(horizontal = 16.dp),
-        contentPadding = PaddingValues(top = 16.dp, bottom = 48.dp),
+        contentPadding = PaddingValues(top = 16.dp, bottom = 16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         // Top Greeting & Notification Header
