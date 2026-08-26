@@ -25,7 +25,8 @@
             android:name=".MainActivity"
             android:exported="true"
             android:label="@string/app_name"
-            android:theme="@style/Theme.MyApplication">
+            android:theme="@style/Theme.MyApplication"
+            android:windowSoftInputMode="adjustResize">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 
@@ -37,20 +38,7 @@
             android:name=".util.NotificationReceiver"
             android:exported="false" />
 
-        <!-- 1. Việc hôm nay - Tiêu chuẩn -->
-        <receiver
-            android:name=".widget.MediumScheduleWidgetProvider"
-            android:exported="false"
-            android:label="@string/widget_medium_name">
-            <intent-filter>
-                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
-            </intent-filter>
-            <meta-data
-                android:name="android.appwidget.provider"
-                android:resource="@xml/widget_medium_info" />
-        </receiver>
-
-        <!-- 2. Việc hôm nay - Vuông -->
+        <!-- 1. Việc hôm nay - Vuông -->
         <receiver
             android:name=".widget.SmallScheduleWidgetProvider"
             android:exported="false"

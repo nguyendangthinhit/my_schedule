@@ -83,18 +83,7 @@ fun com.example.models.EventCategory.getThemedBorderColor(): Color {
 }
 
 fun com.example.models.EventCategory.getThemedBgColor(isDark: Boolean): Color {
-  return if (isDark) {
-    // Màu nền nguyên bản như cũ: pha chuẩn xác 20% màu danh mục trên nền tối #1E293B, đục 100% để che khuất hoàn toàn lớp dưới
-    Color(
-      red = (0.20f * color.red + 0.80f * (30f / 255f)).coerceIn(0f, 1f),
-      green = (0.20f * color.green + 0.80f * (41f / 255f)).coerceIn(0f, 1f),
-      blue = (0.20f * color.blue + 0.80f * (59f / 255f)).coerceIn(0f, 1f),
-      alpha = 1.0f
-    )
-  } else {
-    // Ở chế độ sáng, giữ nguyên màu pastel nguyên bản (bgColor) với độ đục 100% để che khuất tuyệt đối lớp dưới
-    bgColor.copy(alpha = 1.0f)
-  }
+  return color.copy(alpha = 0.3f)
 }
 
 fun com.example.models.EventCategory.getThemedBorderColor(isDark: Boolean): Color {

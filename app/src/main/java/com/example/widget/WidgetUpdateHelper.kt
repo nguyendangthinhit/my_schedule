@@ -9,13 +9,6 @@ object WidgetUpdateHelper {
     fun updateAllWidgets(context: Context) {
         val appWidgetManager = AppWidgetManager.getInstance(context)
 
-        // Medium Widget (Việc hôm nay - Tiêu chuẩn)
-        val mediumComponent = ComponentName(context, MediumScheduleWidgetProvider::class.java)
-        val mediumIds = appWidgetManager.getAppWidgetIds(mediumComponent)
-        if (mediumIds.isNotEmpty()) {
-            MediumScheduleWidgetProvider.updateAllWidgets(context, appWidgetManager, mediumIds)
-        }
-
         // Small Widget (Việc hôm nay - Vuông)
         val smallComponent = ComponentName(context, SmallScheduleWidgetProvider::class.java)
         val smallIds = appWidgetManager.getAppWidgetIds(smallComponent)

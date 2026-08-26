@@ -534,7 +534,7 @@ private fun AIStudyPlannerFormView(
                 shape = RoundedCornerShape(24.dp),
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
-                    .padding(bottom = 16.dp)
+                    .padding(bottom = 10.dp)
                     .testTag("btn_generate_ai_plan"),
                 elevation = FloatingActionButtonDefaults.elevation(defaultElevation = 4.dp),
                 icon = {

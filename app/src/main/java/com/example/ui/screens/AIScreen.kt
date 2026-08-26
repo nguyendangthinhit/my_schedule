@@ -370,47 +370,61 @@ fun AIScreen(
             // Bottom Input bar
             Surface(
                 color = MaterialTheme.colorScheme.surface,
-                shadowElevation = 8.dp
+                shadowElevation = 4.dp,
+                tonalElevation = 1.dp
             ) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                        .padding(horizontal = 12.dp, vertical = 6.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    OutlinedTextField(
-                        value = inputText,
-                        onValueChange = { inputText = it },
-                        placeholder = {
-                            Text(
-                                "Nhập yêu cầu gợi ý hoặc phân bổ lịch trình...",
-                                fontSize = 13.sp,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        },
+                    Box(
                         modifier = Modifier
                             .weight(1f)
-                            .testTag("input_ai_chat"),
-                        shape = RoundedCornerShape(24.dp),
-                        maxLines = 4,
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = MaterialTheme.colorScheme.primary,
-                            unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f),
-                            focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.25f),
-                            unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.25f)
-                        ),
-                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
-                        keyboardActions = KeyboardActions(
-                            onSend = {
-                                if (inputText.isNotBlank() && !isLoading) {
-                                    val text = inputText
-                                    inputText = ""
-                                    focusManager.clearFocus()
-                                    aiViewModel.sendMessage(text, scheduleSummary)
+                            .clip(RoundedCornerShape(20.dp))
+                            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f))
+                            .border(
+                                width = 1.dp,
+                                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
+                                shape = RoundedCornerShape(20.dp)
+                            )
+                            .padding(horizontal = 14.dp, vertical = 10.dp)
+                    ) {
+                        if (inputText.isEmpty()) {
+                            Text(
+                                text = "Nhập yêu cầu gợi ý hoặc phân bổ lịch trình...",
+                                fontSize = 13.5.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                        androidx.compose.foundation.text.BasicTextField(
+                            value = inputText,
+                            onValueChange = { inputText = it },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .testTag("input_ai_chat"),
+                            textStyle = androidx.compose.ui.text.TextStyle(
+                                color = MaterialTheme.colorScheme.onSurface,
+                                fontSize = 13.5.sp
+                            ),
+                            maxLines = 4,
+                            cursorBrush = androidx.compose.ui.graphics.SolidColor(MaterialTheme.colorScheme.primary),
+                            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
+                            keyboardActions = KeyboardActions(
+                                onSend = {
+                                    if (inputText.isNotBlank() && !isLoading) {
+                                        val text = inputText
+                                        inputText = ""
+                                        focusManager.clearFocus()
+                                        aiViewModel.sendMessage(text, scheduleSummary)
+                                    }
                                 }
-                            }
+                            )
                         )
-                    )
+                    }
 
                     Spacer(modifier = Modifier.width(8.dp))
 
@@ -426,17 +440,17 @@ fun AIScreen(
                         },
                         enabled = canSend,
                         modifier = Modifier
-                            .size(46.dp)
+                            .size(38.dp)
                             .clip(CircleShape)
                             .background(
                                 if (canSend) MaterialTheme.colorScheme.primary
-                                else MaterialTheme.colorScheme.surfaceVariant
+                                else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)
                             )
                             .testTag("btn_send_ai_chat")
                     ) {
                         if (isLoading) {
                             CircularProgressIndicator(
-                                modifier = Modifier.size(20.dp),
+                                modifier = Modifier.size(18.dp),
                                 color = MaterialTheme.colorScheme.onPrimary,
                                 strokeWidth = 2.dp
                             )
@@ -445,7 +459,7 @@ fun AIScreen(
                                 Icons.AutoMirrored.Filled.Send,
                                 contentDescription = "Gửi",
                                 tint = if (canSend) Color.White else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
-                                modifier = Modifier.size(20.dp)
+                                modifier = Modifier.size(18.dp)
                             )
                         }
                     }

@@ -14,30 +14,25 @@ import com.example.util.ThemeHelper
 
 enum class WidgetSizeCategory {
     MICRO_GON,          // 2x1 (Việc hôm nay - Gọn)
-    SMALL_VUONG,        // 2x2, 3x2, 2x3, 3x3 (Việc hôm nay - Vuông: width 2 hoặc 3)
-    COMPACT_NGANG,      // 4x1 (Việc hôm nay - Ngang)
-    STANDARD_TIEU_CHUAN // 4x2+ (Việc hôm nay - Tiêu chuẩn: width 4, height >= 2)
+    SMALL_VUONG,        // 2x2 (Việc hôm nay - Vuông)
+    COMPACT_NGANG       // 4x1, 4x2 (Việc hôm nay - Ngang)
 }
 
 object WidgetRenderer {
 
     fun resolveCategory(minWidthDp: Int, minHeightDp: Int): WidgetSizeCategory {
         if (minWidthDp <= 0 || minHeightDp <= 0) {
-            return WidgetSizeCategory.STANDARD_TIEU_CHUAN
+            return WidgetSizeCategory.COMPACT_NGANG
         }
         val isWidth4 = minWidthDp >= 240
         val isHeight1 = minHeightDp < 90
-        val isHeight2Plus = minHeightDp >= 90
 
         return when {
             // 2x1 -> Việc hôm nay - Gọn
             minWidthDp < 180 && isHeight1 -> WidgetSizeCategory.MICRO_GON
 
-            // 4x1 -> Việc hôm nay - Ngang
-            isWidth4 && isHeight1 -> WidgetSizeCategory.COMPACT_NGANG
-
-            // Chiều rộng 4, chiều dài từ 2 trở lên -> Việc hôm nay - Tiêu chuẩn
-            isWidth4 && isHeight2Plus -> WidgetSizeCategory.STANDARD_TIEU_CHUAN
+            // 4x1+ -> Việc hôm nay - Ngang
+            isWidth4 -> WidgetSizeCategory.COMPACT_NGANG
 
             // Chiều rộng 2 hoặc 3 (2x2, 2x3, 3x1, 3x2, 3x3) -> Việc hôm nay - Vuông
             else -> WidgetSizeCategory.SMALL_VUONG
@@ -49,10 +44,7 @@ object WidgetRenderer {
             val viewMap = mapOf(
                 SizeF(120f, 40f) to buildMicroViews(context, data),    // 2x1 -> Gọn
                 SizeF(140f, 110f) to buildSmallViews(context, data),   // 2x2 -> Vuông
-                SizeF(200f, 110f) to buildSmallViews(context, data),   // 3x2 -> Vuông
-                SizeF(260f, 40f) to buildCompactViews(context, data),  // 4x1 -> Ngang
-                SizeF(260f, 110f) to buildMediumViews(context, data),  // 4x2 -> Tiêu chuẩn
-                SizeF(260f, 220f) to buildMediumViews(context, data)   // 4x3+ -> Tiêu chuẩn
+                SizeF(260f, 40f) to buildCompactViews(context, data)   // 4x1 -> Ngang
             )
             val responsiveViews = RemoteViews(viewMap)
             appWidgetManager.updateAppWidget(widgetId, responsiveViews)
@@ -65,7 +57,6 @@ object WidgetRenderer {
             val views = when (category) {
                 WidgetSizeCategory.MICRO_GON -> buildMicroViews(context, data)
                 WidgetSizeCategory.COMPACT_NGANG -> buildCompactViews(context, data)
-                WidgetSizeCategory.STANDARD_TIEU_CHUAN -> buildMediumViews(context, data)
                 WidgetSizeCategory.SMALL_VUONG -> buildSmallViews(context, data)
             }
             appWidgetManager.updateAppWidget(widgetId, views)
@@ -316,115 +307,4 @@ object WidgetRenderer {
 
         return views
     }
-
-    // 4. VIỆC HÔM NAY - TIÊU CHUẨN (Width 4, Height >= 2: Cuộn được, 1 việc trước đó gần nhất + các việc còn lại)
-    fun buildMediumViews(context: Context, data: WidgetDisplayData): RemoteViews {
-        val isDark = ThemeHelper.isDarkMode(context)
-        val layoutId = if (isDark) R.layout.widget_medium_4x1_5_dark else R.layout.widget_medium_4x1_5
-        val views = RemoteViews(context.packageName, layoutId)
-
-        // Date and Weather
-        views.setTextViewText(R.id.tv_medium_date, data.fullDate)
-        views.setTextViewText(R.id.tv_medium_weather, data.weatherFull)
-
-        // Open App
-        val openAppIntent = Intent(context, MainActivity::class.java).apply {
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-        }
-        val openAppPendingIntent = PendingIntent.getActivity(
-            context, 200, openAppIntent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
-        views.setOnClickPendingIntent(R.id.widget_medium_root, openAppPendingIntent)
-        views.setOnClickPendingIntent(R.id.btn_medium_view_all, openAppPendingIntent)
-
-        // Quick Add Button
-        val addIntent = Intent(context, MainActivity::class.java).apply {
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-            putExtra("action", "ADD_EVENT")
-        }
-        val addPendingIntent = PendingIntent.getActivity(
-            context, 201, addIntent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
-        views.setOnClickPendingIntent(R.id.btn_medium_add, addPendingIntent)
-
-        // Task list (Up to 6 slots in the ScrollView)
-        val taskLayouts = listOf(
-            Tuple6(R.id.layout_medium_task_1, R.id.iv_medium_check_1, R.id.tv_medium_badge_1, R.id.tv_medium_task_1, R.id.tv_medium_time_1, R.id.iv_medium_dot_1),
-            Tuple6(R.id.layout_medium_task_2, R.id.iv_medium_check_2, R.id.tv_medium_badge_2, R.id.tv_medium_task_2, R.id.tv_medium_time_2, R.id.iv_medium_dot_2),
-            Tuple6(R.id.layout_medium_task_3, R.id.iv_medium_check_3, R.id.tv_medium_badge_3, R.id.tv_medium_task_3, R.id.tv_medium_time_3, R.id.iv_medium_dot_3),
-            Tuple6(R.id.layout_medium_task_4, R.id.iv_medium_check_4, R.id.tv_medium_badge_4, R.id.tv_medium_task_4, R.id.tv_medium_time_4, R.id.iv_medium_dot_4),
-            Tuple6(R.id.layout_medium_task_5, R.id.iv_medium_check_5, R.id.tv_medium_badge_5, R.id.tv_medium_task_5, R.id.tv_medium_time_5, R.id.iv_medium_dot_5),
-            Tuple6(R.id.layout_medium_task_6, R.id.iv_medium_check_6, R.id.tv_medium_badge_6, R.id.tv_medium_task_6, R.id.tv_medium_time_6, R.id.iv_medium_dot_6)
-        )
-
-        val standardTasks = data.standardTasks
-
-        if (standardTasks.isEmpty()) {
-            views.setViewVisibility(R.id.tv_medium_empty, View.VISIBLE)
-            for (tuple in taskLayouts) {
-                views.setViewVisibility(tuple.layoutId, View.GONE)
-            }
-        } else {
-            views.setViewVisibility(R.id.tv_medium_empty, View.GONE)
-
-            for (i in taskLayouts.indices) {
-                val tuple = taskLayouts[i]
-                if (i < standardTasks.size) {
-                    val task = standardTasks[i]
-                    views.setViewVisibility(tuple.layoutId, View.VISIBLE)
-                    views.setTextViewText(tuple.titleId, task.title)
-                    views.setTextViewText(tuple.timeId, task.timeRange)
-                    views.setImageViewResource(tuple.dotId, task.dotRes)
-
-                    // Badge: Vừa qua / Tiếp theo / None
-                    if (task.isPast) {
-                        views.setViewVisibility(tuple.badgeId, View.VISIBLE)
-                        views.setTextViewText(tuple.badgeId, "Đã qua")
-                    } else if (task.isNext) {
-                        views.setViewVisibility(tuple.badgeId, View.VISIBLE)
-                        views.setTextViewText(tuple.badgeId, "Tiếp theo")
-                    } else {
-                        views.setViewVisibility(tuple.badgeId, View.GONE)
-                    }
-
-                    val checkIcon = if (task.isCompleted) {
-                        R.drawable.ic_widget_check_square_checked
-                    } else {
-                        if (isDark) R.drawable.ic_widget_check_square_empty_dark else R.drawable.ic_widget_check_square_empty
-                    }
-                    views.setImageViewResource(tuple.checkId, checkIcon)
-
-                    val toggleIntent = Intent(context, ScheduleWidgetActionReceiver::class.java).apply {
-                        action = ScheduleWidgetActionReceiver.ACTION_TOGGLE_TASK
-                        putExtra(ScheduleWidgetActionReceiver.EXTRA_EVENT_ID, task.id)
-                        putExtra(ScheduleWidgetActionReceiver.EXTRA_CURRENT_STATUS, task.isCompleted)
-                    }
-                    val togglePendingIntent = PendingIntent.getBroadcast(
-                        context, 2000 + i, toggleIntent,
-                        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-                    )
-                    views.setOnClickPendingIntent(tuple.checkId, togglePendingIntent)
-                    views.setOnClickPendingIntent(tuple.layoutId, togglePendingIntent)
-                } else {
-                    views.setViewVisibility(tuple.layoutId, View.GONE)
-                }
-            }
-        }
-
-        // Footer
-        views.setTextViewText(R.id.tv_medium_footer, data.footerText)
-
-        return views
-    }
-
-    private data class Tuple6(
-        val layoutId: Int,
-        val checkId: Int,
-        val badgeId: Int,
-        val titleId: Int,
-        val timeId: Int,
-        val dotId: Int
-    )
 }

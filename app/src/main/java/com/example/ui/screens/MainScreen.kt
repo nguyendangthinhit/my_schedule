@@ -88,7 +88,8 @@ fun MainScreen(
 
     Scaffold(
         bottomBar = { BottomNavigationBar(navController) },
-        containerColor = MaterialTheme.colorScheme.background
+        containerColor = MaterialTheme.colorScheme.background,
+        contentWindowInsets = WindowInsets.systemBars
     ) { innerPadding ->
         NavHost(
             navController = navController,
