@@ -80,9 +80,7 @@ fun CalendarScreen(
             .background(MaterialTheme.colorScheme.background)
     ) {
         Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(bottom = 80.dp)
+            modifier = Modifier.fillMaxSize()
         ) {
             // Top Bar: Title & 3 View Mode Toggle (Ngày, Tuần, Tháng)
             CalendarTopHeader(
@@ -786,7 +784,8 @@ fun DayScheduleContent(
         state = listState,
         modifier = Modifier
             .fillMaxSize()
-            .padding(horizontal = 14.dp, vertical = 8.dp)
+            .padding(horizontal = 14.dp),
+        contentPadding = PaddingValues(top = 8.dp, bottom = 88.dp)
     ) {
         // Header Thông Tin Ngày & Thời Tiết
         item {
@@ -1722,7 +1721,8 @@ fun WeekScheduleView(
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
-            .padding(horizontal = 10.dp, vertical = 4.dp)
+            .padding(horizontal = 10.dp),
+        contentPadding = PaddingValues(top = 4.dp, bottom = 88.dp)
     ) {
         // Week Calendar ViewPager (HorizontalPager)
         item {
@@ -2262,7 +2262,8 @@ fun MonthScheduleView(
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
-            .padding(horizontal = 10.dp, vertical = 4.dp)
+            .padding(horizontal = 10.dp),
+        contentPadding = PaddingValues(top = 4.dp, bottom = 88.dp)
     ) {
         // Month Calendar ViewPager (HorizontalPager)
         item {
