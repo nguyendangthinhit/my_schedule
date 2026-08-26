@@ -72,6 +72,15 @@ fun AIScreen(
     var inputText by remember { mutableStateOf("") }
     var showApiKeyDialog by remember { mutableStateOf(false) }
     var tempApiKeyInput by remember { mutableStateOf(customApiKey) }
+    var showStudyPlanner by remember { mutableStateOf(false) }
+
+    if (showStudyPlanner) {
+        AIStudyPlannerScreen(
+            onBack = { showStudyPlanner = false },
+            scheduleViewModel = scheduleViewModel
+        )
+        return
+    }
 
     // Prepare schedule context if scheduleViewModel is available
     val todayEvents = scheduleViewModel?.events?.collectAsStateWithLifecycle()?.value?.filter {
@@ -161,27 +170,12 @@ fun AIScreen(
                         Spacer(modifier = Modifier.width(12.dp))
 
                         Column {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text(
-                                    text = "Trợ lý AI Lịch Trình",
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 17.sp,
-                                    color = MaterialTheme.colorScheme.onSurface
-                                )
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Surface(
-                                    shape = RoundedCornerShape(6.dp),
-                                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
-                                ) {
-                                    Text(
-                                        text = "Gemini 3.5 Flash Lite",
-                                        fontSize = 10.sp,
-                                        fontWeight = FontWeight.SemiBold,
-                                        color = MaterialTheme.colorScheme.primary,
-                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                                    )
-                                }
-                            }
+                            Text(
+                                text = "Trợ lý AI Lịch Trình",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 17.sp,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
                             Text(
                                 text = if (isLoading) "Đang suy nghĩ & phân bổ lịch..." else "Gợi ý & tự động điền lịch trình",
                                 fontSize = 11.sp,
@@ -191,6 +185,18 @@ fun AIScreen(
                     }
 
                     Row(verticalAlignment = Alignment.CenterVertically) {
+                        // AI Study Planner button
+                        IconButton(
+                            onClick = { showStudyPlanner = true },
+                            modifier = Modifier.testTag("btn_open_study_planner")
+                        ) {
+                            Icon(
+                                Icons.Default.School,
+                                contentDescription = "AI Study Planner",
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        }
+
                         // API Key status/config button
                         IconButton(
                             onClick = {
@@ -323,7 +329,9 @@ fun AIScreen(
                 items(quickPrompts) { prompt ->
                     SuggestionChip(
                         onClick = {
-                            if (!isLoading) {
+                            if (prompt.contains("học tập & làm việc", ignoreCase = true) || prompt.contains("phân bổ thời gian", ignoreCase = true)) {
+                                showStudyPlanner = true
+                            } else if (!isLoading) {
                                 aiViewModel.sendMessage(prompt, scheduleSummary)
                             }
                         },
@@ -335,12 +343,24 @@ fun AIScreen(
                             )
                         },
                         colors = SuggestionChipDefaults.suggestionChipColors(
-                            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                            labelColor = MaterialTheme.colorScheme.onSurface
+                            containerColor = if (prompt.contains("học tập & làm việc", ignoreCase = true)) {
+                                Color(0xFFEFF6FF)
+                            } else {
+                                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                            },
+                            labelColor = if (prompt.contains("học tập & làm việc", ignoreCase = true)) {
+                                Color(0xFF1D4ED8)
+                            } else {
+                                MaterialTheme.colorScheme.onSurface
+                            }
                         ),
                         border = SuggestionChipDefaults.suggestionChipBorder(
                             enabled = true,
-                            borderColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
+                            borderColor = if (prompt.contains("học tập & làm việc", ignoreCase = true)) {
+                                Color(0xFF3B82F6)
+                            } else {
+                                MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
+                            }
                         ),
                         shape = RoundedCornerShape(16.dp)
                     )
@@ -473,9 +493,11 @@ fun AIScreen(
             confirmButton = {
                 Button(
                     onClick = {
-                        aiViewModel.setCustomApiKey(tempApiKeyInput)
+                        val key = tempApiKeyInput.trim()
+                        aiViewModel.setCustomApiKey(key)
+                        com.example.util.AiConfigHelper.saveApiKey(context, key)
                         showApiKeyDialog = false
-                        Toast.makeText(context, "Đã lưu API Key thử nghiệm", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, "Đã lưu Gemini API Key thành công", Toast.LENGTH_SHORT).show()
                     },
                     shape = RoundedCornerShape(8.dp)
                 ) {

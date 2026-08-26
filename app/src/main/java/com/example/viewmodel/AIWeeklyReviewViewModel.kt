@@ -14,6 +14,7 @@ import com.example.models.dashboard.AIWeeklyReviewData
 import com.example.models.dashboard.AIInteractionMessage
 import com.example.models.dashboard.PeriodType
 import com.example.network.*
+import com.example.util.AiConfigHelper
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
 import kotlinx.coroutines.Dispatchers
@@ -161,9 +162,8 @@ class AIWeeklyReviewViewModel(
             )
 
             val response = geminiService.generateContent(
-                model = GeminiApiService.MODEL_GEMINI_3_5_FLASH_LITE,
+                model = GeminiApiService.MODEL_GEMINI_DEFAULT,
                 apiKey = apiKey,
-                headerKey = apiKey,
                 request = request
             )
 
@@ -417,9 +417,8 @@ class AIWeeklyReviewViewModel(
                 val response = if (apiKey.isNotBlank()) {
                     try {
                         geminiService.generateContent(
-                            model = GeminiApiService.MODEL_GEMINI_3_5_FLASH_LITE,
+                            model = GeminiApiService.MODEL_GEMINI_DEFAULT,
                             apiKey = apiKey,
-                            headerKey = apiKey,
                             request = request
                         ).candidates?.firstOrNull()?.content?.parts?.firstOrNull()?.text
                     } catch (e: Exception) {
@@ -463,13 +462,7 @@ class AIWeeklyReviewViewModel(
     }
 
     private fun getApiKey(): String {
-        return "AQ.Ab8RN6J_CyRqZqtpseYxDt1oK_XLVegkWbbxLYrEMSB6aR3DoQ".ifBlank {
-            try {
-                BuildConfig.GEMINI_API_KEY ?: ""
-            } catch (e: Exception) {
-                ""
-            }
-        }
+        return AiConfigHelper.getEffectiveApiKey()
     }
 }
 

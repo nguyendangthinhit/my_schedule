@@ -16,6 +16,7 @@ class MyApplication : Application() {
     override fun onCreate() {
         super.onCreate()
         NotificationHelper.createNotificationChannels(this)
+        com.example.util.AiConfigHelper.getEffectiveApiKey(this)
 
         // Seed sample data for August 2026 if not already seeded
         CoroutineScope(Dispatchers.IO).launch {

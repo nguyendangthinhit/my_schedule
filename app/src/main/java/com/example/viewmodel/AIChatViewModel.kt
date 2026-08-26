@@ -11,6 +11,7 @@ import com.example.network.GeminiContent
 import com.example.network.GeminiGenerationConfig
 import com.example.network.GeminiPart
 import com.example.network.GeminiRequest
+import com.example.util.AiConfigHelper
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -48,7 +49,7 @@ class AIChatViewModel(
         listOf(
             ChatMessage(
                 role = MessageRole.MODEL,
-                text = "Xin chào! 👋 Tôi là trợ lý AI (Gemini 3.5 Flash Lite) của bạn. Tôi có thể giúp bạn lập kế hoạch ngày mới, gợi ý phân bổ thời gian biểu và trực tiếp điền lịch trình vào ứng dụng giúp bạn! Bạn cần tôi lên lịch gì hôm nay?"
+                text = "Xin chào! 👋 Tôi là trợ lý AI của bạn. Tôi có thể giúp bạn lập kế hoạch ngày mới, gợi ý phân bổ thời gian biểu và trực tiếp điền lịch trình vào ứng dụng giúp bạn! Bạn cần tôi lên lịch gì hôm nay?"
             )
         )
     )
@@ -60,28 +61,21 @@ class AIChatViewModel(
     private val _errorMessage = MutableStateFlow<String?>(null)
     val errorMessage: StateFlow<String?> = _errorMessage.asStateFlow()
 
-    private val _customApiKey = MutableStateFlow("AQ.Ab8RN6J_CyRqZqtpseYxDt1oK_XLVegkWbbxLYrEMSB6aR3DoQ")
+    private val _customApiKey = MutableStateFlow(AiConfigHelper.getEffectiveApiKey())
     val customApiKey: StateFlow<String> = _customApiKey.asStateFlow()
 
     fun setCustomApiKey(key: String) {
-        _customApiKey.value = key.trim()
+        val trimmed = key.trim()
+        _customApiKey.value = trimmed
+        AiConfigHelper.setInMemoryKey(trimmed)
     }
 
     fun getEffectiveApiKey(): String {
-        val customKey = _customApiKey.value.trim()
-        if (customKey.isNotBlank()) {
-            return customKey
+        val current = _customApiKey.value.trim()
+        if (current.isNotBlank()) {
+            return current
         }
-        val buildKey = try {
-            BuildConfig.GEMINI_API_KEY
-        } catch (e: Exception) {
-            ""
-        }
-        return if (!buildKey.isNullOrBlank() && buildKey != "null" && buildKey != "GEMINI_API_KEY_DEFAULT_VALUE") {
-            buildKey.trim()
-        } else {
-            ""
-        }
+        return AiConfigHelper.getEffectiveApiKey()
     }
 
     fun clearError() {
@@ -248,9 +242,8 @@ class AIChatViewModel(
 
                 val response = withContext(Dispatchers.IO) {
                     geminiService.generateContent(
-                        model = GeminiApiService.MODEL_GEMINI_3_5_FLASH_LITE,
+                        model = GeminiApiService.MODEL_GEMINI_DEFAULT,
                         apiKey = rawKey,
-                        headerKey = rawKey,
                         request = request
                     )
                 }
@@ -291,8 +284,8 @@ class AIChatViewModel(
                         }
                     }
 
-                    if (code == 401 || code == 400 || serverMsg.contains("API key", ignoreCase = true) || serverMsg.contains("UNAUTHENTICATED", ignoreCase = true)) {
-                        errorDesc = "Lỗi xác thực ($code): ${if (serverMsg.isNotBlank()) serverMsg else "API Key không được máy chủ chấp nhận. Vui lòng kiểm tra lại mã API."}"
+                    if (code == 401 || code == 400 || serverMsg.contains("API key", ignoreCase = true) || serverMsg.contains("UNAUTHENTICATED", ignoreCase = true) || serverMsg.contains("API_KEY_INVALID", ignoreCase = true)) {
+                        errorDesc = "Lỗi xác thực (401/400): API Key chưa chính xác hoặc đã hết hạn. Vui lòng bấm vào biểu tượng 🔑 ở góc phải trên để nhập Gemini API Key từ Google AI Studio (bắt đầu bằng AIzaSy...)."
                     } else if (code == 429) {
                         errorDesc = "Đã vượt quá giới hạn lượt gọi API (429 Rate Limit). Vui lòng thử lại sau vài giây."
                     } else if (serverMsg.isNotBlank()) {

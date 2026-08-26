@@ -55,14 +55,12 @@ interface GeminiApiService {
     suspend fun generateContent(
         @Path("model") model: String,
         @retrofit2.http.Query("key") apiKey: String,
-        @Header("x-goog-api-key") headerKey: String,
         @Body request: GeminiRequest
     ): GeminiResponse
 
     companion object {
-        const val MODEL_GEMINI_3_5_FLASH_LITE = "gemini-3.5-flash-lite"
-        const val MODEL_GEMINI_3_5_FLASH = "gemini-3.5-flash"
-        const val MODEL_GEMINI_2_5_FLASH = "gemini-2.5-flash"
+        const val MODEL_GEMINI_DEFAULT = "gemini-3.1-flash-lite-preview"
+        const val MODEL_GEMINI_3_1_FLASH_LITE = "gemini-3.1-flash-lite-preview"
         private const val BASE_URL = "https://generativelanguage.googleapis.com/"
 
         fun create(): GeminiApiService {
