@@ -1,5 +1,6 @@
 package com.example.ui.screens
 
+import android.util.Log
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.*
@@ -26,6 +27,7 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -33,13 +35,25 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.models.Event
 import com.example.models.EventCategory
+import com.example.network.GeminiApiService
+import com.example.network.GeminiContent
+import com.example.network.GeminiGenerationConfig
+import com.example.network.GeminiPart
+import com.example.network.GeminiRequest
+import com.example.util.AiConfigHelper
 import com.example.viewmodel.ScheduleViewModel
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import org.json.JSONArray
+import org.json.JSONObject
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.LocalTime
+import java.time.format.DateTimeFormatter
 import java.time.temporal.TemporalAdjusters
 import java.util.UUID
 
@@ -50,9 +64,9 @@ enum class StudyPlannerStep {
 }
 
 enum class TaskDifficulty(val title: String, val color: Color, val bgColor: Color) {
-    EASY("Dễ", Color(0xFF10B981), Color(0xFFECFDF5)),
+    EASY("Dễ (Thấp)", Color(0xFF10B981), Color(0xFFECFDF5)),
     MEDIUM("Trung bình", Color(0xFFF59E0B), Color(0xFFFEF3C7)),
-    HARD("Khó", Color(0xFFEF4444), Color(0xFFFEE2E2))
+    HARD("Khó (Cao)", Color(0xFFEF4444), Color(0xFFFEE2E2))
 }
 
 data class StudyTaskItem(
@@ -82,53 +96,33 @@ fun AIStudyPlannerScreen(
     scheduleViewModel: ScheduleViewModel? = null
 ) {
     val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
     var currentStep by remember { mutableStateOf(StudyPlannerStep.FORM) }
 
-    // Form inputs state
-    var studyGoal by remember {
-        mutableStateOf("Ôn thi cuối kỳ môn AI, hoàn thành 3 bài tập lớn và củng cố cấu trúc dữ liệu")
-    }
+    // Observe existing schedule events to prevent overlapping
+    val existingEvents by (scheduleViewModel?.events?.collectAsStateWithLifecycle() ?: remember {
+        mutableStateOf(emptyList<Event>())
+    })
+    val now = remember { LocalDate.now() }
+    val todayStartOfWeek = remember(now) { now.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY)) }
 
-    var taskList by remember {
-        mutableStateOf(
-            listOf(
-                StudyTaskItem(
-                    title = "Machine Learning",
-                    subtitle = "Ôn thi cuối kỳ",
-                    deadline = "10/09/2026",
-                    hours = 20,
-                    difficulty = TaskDifficulty.HARD,
-                    accentColor = Color(0xFF8B5CF6)
-                ),
-                StudyTaskItem(
-                    title = "Deep Learning Project",
-                    subtitle = "Bài tập lớn",
-                    deadline = "18/09/2026",
-                    hours = 15,
-                    difficulty = TaskDifficulty.MEDIUM,
-                    accentColor = Color(0xFF06B6D4)
-                ),
-                StudyTaskItem(
-                    title = "Data Structures",
-                    subtitle = "Ôn tập",
-                    deadline = "01/09/2026",
-                    hours = 10,
-                    difficulty = TaskDifficulty.EASY,
-                    accentColor = Color(0xFF10B981)
-                )
-            )
-        )
-    }
-
+    // Form inputs state - Starts empty as requested
+    var studyGoal by remember { mutableStateOf("") }
+    var taskList by remember { mutableStateOf(emptyList<StudyTaskItem>()) }
     var selectedTimeSlots by remember {
-        mutableStateOf(setOf("Sáng", "Tối", "Cuối tuần"))
+        mutableStateOf(setOf("Sáng", "Chiều", "Tối", "Cuối tuần"))
+    }
+
+    // Generated schedule holder
+    var generatedSchedule by remember {
+        mutableStateOf<Map<Int, List<PlanTimelineItem>>>(emptyMap())
     }
 
     var showAddTaskDialog by remember { mutableStateOf(false) }
     var taskToEdit by remember { mutableStateOf<StudyTaskItem?>(null) }
     var taskToDelete by remember { mutableStateOf<StudyTaskItem?>(null) }
 
-    // Intercept back button when inside inner steps
+    // Intercept back button inside inner steps
     BackHandler {
         when (currentStep) {
             StudyPlannerStep.FORM -> onBack()
@@ -169,7 +163,7 @@ fun AIStudyPlannerScreen(
                     },
                     onGeneratePlan = {
                         if (taskList.isEmpty()) {
-                            Toast.makeText(context, "Vui lòng thêm ít nhất 1 môn / nhiệm vụ", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, "Vui lòng thêm ít nhất 1 môn / nhiệm vụ để AI lên lịch", Toast.LENGTH_SHORT).show()
                         } else {
                             currentStep = StudyPlannerStep.ADJUSTING
                         }
@@ -180,8 +174,16 @@ fun AIStudyPlannerScreen(
 
             StudyPlannerStep.ADJUSTING -> {
                 AIStudyPlannerAdjustingView(
+                    studyGoal = studyGoal,
+                    taskList = taskList,
+                    selectedTimeSlots = selectedTimeSlots,
+                    existingEvents = existingEvents,
+                    todayStartOfWeek = todayStartOfWeek,
                     onBack = { currentStep = StudyPlannerStep.FORM },
-                    onCompleted = { currentStep = StudyPlannerStep.RESULT }
+                    onCompleted = { resultPlan ->
+                        generatedSchedule = resultPlan
+                        currentStep = StudyPlannerStep.RESULT
+                    }
                 )
             }
 
@@ -189,6 +191,7 @@ fun AIStudyPlannerScreen(
                 AIStudyPlannerResultView(
                     onBack = { currentStep = StudyPlannerStep.FORM },
                     taskList = taskList,
+                    initialSchedule = generatedSchedule,
                     scheduleViewModel = scheduleViewModel,
                     onApplied = {
                         Toast.makeText(
@@ -265,7 +268,7 @@ fun AIStudyPlannerScreen(
 }
 
 // -------------------------------------------------------------------------------------------------
-// 1. SCREEN 1: AI Study Planner Form View
+// 1. SCREEN 1: AI Planner Form View
 // -------------------------------------------------------------------------------------------------
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -286,7 +289,7 @@ private fun AIStudyPlannerFormView(
             TopAppBar(
                 title = {
                     Text(
-                        text = "AI Study Planner",
+                        text = "AI Planner",
                         fontWeight = FontWeight.Bold,
                         fontSize = 19.sp
                     )
@@ -303,40 +306,34 @@ private fun AIStudyPlannerFormView(
         },
         bottomBar = {
             Surface(
-                color = MaterialTheme.colorScheme.background,
-                shadowElevation = 8.dp,
-                modifier = Modifier.fillMaxWidth()
+                color = MaterialTheme.colorScheme.surface,
+                shadowElevation = 8.dp
             ) {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 20.dp, vertical = 14.dp)
+                        .padding(horizontal = 16.dp, vertical = 10.dp)
                 ) {
                     Button(
                         onClick = onGeneratePlan,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(54.dp),
-                        shape = RoundedCornerShape(27.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFF2563EB)
-                        ),
-                        elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp)
+                            .height(50.dp)
+                            .testTag("btn_generate_ai_plan"),
+                        shape = RoundedCornerShape(25.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
                     ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.Center
-                        ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(
                                 Icons.Default.AutoAwesome,
                                 contentDescription = null,
-                                tint = Color.White,
-                                modifier = Modifier.size(20.dp)
+                                modifier = Modifier.size(20.dp),
+                                tint = Color.White
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
                                 text = "Tạo kế hoạch với AI",
-                                fontSize = 16.sp,
+                                fontSize = 15.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = Color.White
                             )
@@ -352,194 +349,218 @@ private fun AIStudyPlannerFormView(
                 .fillMaxSize()
                 .padding(innerPadding)
                 .padding(horizontal = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(20.dp)
+            contentPadding = PaddingValues(top = 8.dp, bottom = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(18.dp)
         ) {
-            // 1. Mục tiêu học tập
-            item {
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = "1. Mục tiêu học tập",
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 16.sp,
-                    color = MaterialTheme.colorScheme.onBackground
-                )
-                Spacer(modifier = Modifier.height(10.dp))
-                OutlinedTextField(
-                    value = studyGoal,
-                    onValueChange = onStudyGoalChange,
-                    placeholder = {
-                        Text(
-                            text = "Mục tiêu của bạn là gì?\nVí dụ: Ôn thi cuối kỳ môn AI, hoàn thành 3 bài tập lớn, học thêm Python...",
-                            fontSize = 13.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
-                        )
-                    },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(min = 90.dp),
-                    shape = RoundedCornerShape(16.dp),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedContainerColor = MaterialTheme.colorScheme.surface,
-                        unfocusedContainerColor = MaterialTheme.colorScheme.surface,
-                        focusedBorderColor = Color(0xFF3B82F6),
-                        unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f)
-                    )
-                )
-            }
-
-            // 2. Danh sách môn / nhiệm vụ
-            item {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
+                // 1. Mục tiêu học tập
+                item {
                     Text(
-                        text = "2. Danh sách môn / nhiệm vụ",
+                        text = "1. Mục tiêu học tập",
                         fontWeight = FontWeight.Bold,
                         fontSize = 16.sp,
                         color = MaterialTheme.colorScheme.onBackground
                     )
-                    FilledTonalButton(
-                        onClick = onAddTaskClick,
-                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
-                        shape = RoundedCornerShape(12.dp)
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                Icons.Default.Add,
-                                contentDescription = null,
-                                modifier = Modifier.size(18.dp)
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
+                    Spacer(modifier = Modifier.height(8.dp))
+                    OutlinedTextField(
+                        value = studyGoal,
+                        onValueChange = onStudyGoalChange,
+                        placeholder = {
                             Text(
-                                text = "Thêm",
-                                fontWeight = FontWeight.SemiBold,
-                                fontSize = 14.sp
+                                text = "Mục tiêu của bạn là gì? (Tùy chọn)\nVí dụ: Ôn thi cuối kỳ, hoàn thành bài tập lớn nhóm 3, củng cố kiến thức...",
+                                fontSize = 13.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
                             )
-                        }
-                    }
-                }
-                Spacer(modifier = Modifier.height(4.dp))
-            }
-
-            if (taskList.isEmpty()) {
-                item {
-                    Surface(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(16.dp),
-                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
-                        border = androidx.compose.foundation.BorderStroke(
-                            1.dp,
-                            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(min = 86.dp),
+                        shape = RoundedCornerShape(14.dp),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedContainerColor = MaterialTheme.colorScheme.surface,
+                            unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+                            focusedBorderColor = MaterialTheme.colorScheme.primary,
+                            unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f)
                         )
+                    )
+                }
+
+                // 2. Danh sách môn / nhiệm vụ
+                item {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(24.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally
-                        ) {
-                            Icon(
-                                Icons.Default.School,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
-                                modifier = Modifier.size(40.dp)
-                            )
-                            Spacer(modifier = Modifier.height(8.dp))
+                        Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                text = "Chưa có môn học nào được thêm",
-                                fontSize = 14.sp,
+                                text = "2. Danh sách môn / nhiệm vụ (${taskList.size})",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 16.sp,
+                                color = MaterialTheme.colorScheme.onBackground
+                            )
+                            Text(
+                                text = "AI sẽ đọc tên, ghi chú, hạn chót, số giờ và độ ưu tiên để xếp lịch",
+                                fontSize = 11.sp,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
-                            Spacer(modifier = Modifier.height(10.dp))
-                            Button(
-                                onClick = onAddTaskClick,
-                                shape = RoundedCornerShape(12.dp)
+                        }
+                        Spacer(modifier = Modifier.width(12.dp))
+                        FilledTonalButton(
+                            onClick = onAddTaskClick,
+                            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp),
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.testTag("btn_add_study_task")
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.Center
                             ) {
-                                Text("Thêm môn đầu tiên")
+                                Icon(
+                                    Icons.Default.Add,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = "Thêm",
+                                    fontWeight = FontWeight.SemiBold,
+                                    fontSize = 14.sp,
+                                    maxLines = 1,
+                                    softWrap = false
+                                )
                             }
                         }
                     }
                 }
-            } else {
-                items(taskList, key = { it.id }) { item ->
-                    StudyTaskCard(
-                        item = item,
-                        onEdit = { onEditTask(item) },
-                        onDelete = { onDeleteTask(item) }
-                    )
-                    Spacer(modifier = Modifier.height(10.dp))
-                }
-            }
 
-            // 3. Thời gian rảnh
-            item {
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = "3. Thời gian rảnh",
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 16.sp,
-                    color = MaterialTheme.colorScheme.onBackground
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = "Chọn thời gian bạn rảnh trong tuần",
-                    fontSize = 13.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Spacer(modifier = Modifier.height(12.dp))
-
-                val slots = listOf(
-                    "Sáng" to "Buổi sáng (08:00 - 11:30)",
-                    "Chiều" to "Buổi chiều (13:30 - 17:00)",
-                    "Tối" to "Buổi tối (19:00 - 22:30)",
-                    "Cuối tuần" to "Thứ Bảy & Chủ Nhật"
-                )
-
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    slots.forEach { (key, label) ->
-                        val isSelected = selectedTimeSlots.contains(key)
+                if (taskList.isEmpty()) {
+                    item {
                         Surface(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clip(RoundedCornerShape(12.dp))
-                                .clickable { onToggleTimeSlot(key) },
-                            shape = RoundedCornerShape(12.dp),
-                            color = if (isSelected) Color(0xFFEFF6FF) else MaterialTheme.colorScheme.surface,
+                                .clip(RoundedCornerShape(16.dp))
+                                .clickable { onAddTaskClick() },
+                            shape = RoundedCornerShape(16.dp),
+                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
                             border = androidx.compose.foundation.BorderStroke(
                                 1.dp,
-                                if (isSelected) Color(0xFF3B82F6) else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                                MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
                             )
                         ) {
-                            Row(
+                            Column(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(horizontal = 14.dp, vertical = 12.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.SpaceBetween
+                                    .padding(24.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
                             ) {
-                                Text(
-                                    text = label,
-                                    fontSize = 14.sp,
-                                    fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
-                                    color = if (isSelected) Color(0xFF1E40AF) else MaterialTheme.colorScheme.onSurface
-                                )
                                 Icon(
-                                    imageVector = if (isSelected) Icons.Default.CheckCircle else Icons.Default.RadioButtonUnchecked,
+                                    Icons.Default.School,
                                     contentDescription = null,
-                                    tint = if (isSelected) Color(0xFF2563EB) else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
-                                    modifier = Modifier.size(20.dp)
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(40.dp)
                                 )
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text(
+                                    text = "Chưa có môn học / nhiệm vụ nào",
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = "Nhấn để thêm môn học đầu tiên kèm hạn chót và số giờ",
+                                    fontSize = 12.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    textAlign = TextAlign.Center
+                                )
+                                Spacer(modifier = Modifier.height(12.dp))
+                                Button(
+                                    onClick = onAddTaskClick,
+                                    shape = RoundedCornerShape(12.dp)
+                                ) {
+                                    Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text("Thêm môn học")
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    items(taskList, key = { it.id }) { item ->
+                        StudyTaskCard(
+                            item = item,
+                            onEdit = { onEditTask(item) },
+                            onDelete = { onDeleteTask(item) }
+                        )
+                    }
+                }
+
+                // 3. Thời gian rảnh
+                item {
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = "3. Khung giờ rảnh trong tuần",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 16.sp,
+                        color = MaterialTheme.colorScheme.onBackground
+                    )
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = "AI sẽ chỉ xếp lịch vào những khung giờ bạn rảnh",
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    val slots = listOf(
+                        "Sáng" to "Buổi sáng (08:00 - 11:30)",
+                        "Chiều" to "Buổi chiều (13:30 - 17:00)",
+                        "Tối" to "Buổi tối (19:00 - 22:30)",
+                        "Cuối tuần" to "Thứ Bảy & Chủ Nhật"
+                    )
+
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        slots.forEach { (key, label) ->
+                            val isSelected = selectedTimeSlots.contains(key)
+                            Surface(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .clickable { onToggleTimeSlot(key) },
+                                shape = RoundedCornerShape(12.dp),
+                                color = if (isSelected) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f) else MaterialTheme.colorScheme.surface,
+                                border = androidx.compose.foundation.BorderStroke(
+                                    1.dp,
+                                    if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                                )
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 14.dp, vertical = 12.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Text(
+                                        text = label,
+                                        fontSize = 13.sp,
+                                        fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
+                                        color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
+                                    )
+                                    Icon(
+                                        imageVector = if (isSelected) Icons.Default.CheckCircle else Icons.Default.RadioButtonUnchecked,
+                                        contentDescription = null,
+                                        tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
                             }
                         }
                     }
                 }
-                Spacer(modifier = Modifier.height(20.dp))
             }
         }
     }
-}
 
 @Composable
 private fun StudyTaskCard(
@@ -596,18 +617,20 @@ private fun StudyTaskCard(
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
-                    Text(
-                        text = item.subtitle,
-                        fontSize = 12.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
+                    if (item.subtitle.isNotBlank()) {
+                        Text(
+                            text = item.subtitle,
+                            fontSize = 12.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
                 }
 
                 Spacer(modifier = Modifier.width(8.dp))
 
-                // Difficulty Badge
+                // Difficulty / Priority Badge
                 Surface(
                     shape = RoundedCornerShape(12.dp),
                     color = item.difficulty.bgColor
@@ -658,7 +681,7 @@ private fun StudyTaskCard(
                         modifier = Modifier.size(13.dp)
                     )
                     Text(
-                        text = "Hạn: ${item.deadline}",
+                        text = "Hạn: ${item.deadline.ifBlank { "Chưa đặt" }}",
                         fontSize = 11.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -674,7 +697,7 @@ private fun StudyTaskCard(
                         modifier = Modifier.size(13.dp)
                     )
                     Text(
-                        text = "${item.hours}h",
+                        text = "${item.hours} giờ",
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Medium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -686,23 +709,21 @@ private fun StudyTaskCard(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                    // Edit Button
                     IconButton(
                         onClick = onEdit,
-                        modifier = Modifier.size(36.dp)
+                        modifier = Modifier.size(34.dp)
                     ) {
                         Icon(
                             imageVector = Icons.Outlined.Edit,
                             contentDescription = "Chỉnh sửa",
-                            tint = Color(0xFF2563EB),
+                            tint = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.size(18.dp)
                         )
                     }
 
-                    // Delete Button
                     IconButton(
                         onClick = onDelete,
-                        modifier = Modifier.size(36.dp)
+                        modifier = Modifier.size(34.dp)
                     ) {
                         Icon(
                             imageVector = Icons.Outlined.Delete,
@@ -718,26 +739,47 @@ private fun StudyTaskCard(
 }
 
 // -------------------------------------------------------------------------------------------------
-// 2. SCREEN 2: Điều chỉnh kế hoạch (AI Loading / Adjusting Screen)
+// 2. SCREEN 2: Điều chỉnh kế hoạch (AI Loading & Real Gemini Generation Screen)
 // -------------------------------------------------------------------------------------------------
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun AIStudyPlannerAdjustingView(
+    studyGoal: String,
+    taskList: List<StudyTaskItem>,
+    selectedTimeSlots: Set<String>,
+    existingEvents: List<Event>,
+    todayStartOfWeek: LocalDate,
     onBack: () -> Unit,
-    onCompleted: () -> Unit
+    onCompleted: (Map<Int, List<PlanTimelineItem>>) -> Unit
 ) {
     var stepProgress by remember { mutableIntStateOf(1) }
+    val geminiService = remember { GeminiApiService.create() }
 
-    // Progressive animation timer
+    // Execute real AI scheduling logic in background while showing animated progress
     LaunchedEffect(Unit) {
-        delay(700)
-        stepProgress = 2
-        delay(800)
-        stepProgress = 3
-        delay(900)
-        stepProgress = 4
-        delay(600)
-        onCompleted()
+        val animationJob = launch {
+            delay(500)
+            stepProgress = 2
+            delay(600)
+            stepProgress = 3
+            delay(700)
+            stepProgress = 4
+        }
+
+        val resultPlan = withContext(Dispatchers.IO) {
+            generateStudyPlan(
+                geminiService = geminiService,
+                studyGoal = studyGoal,
+                taskList = taskList,
+                selectedTimeSlots = selectedTimeSlots,
+                existingEvents = existingEvents,
+                todayStartOfWeek = todayStartOfWeek
+            )
+        }
+
+        animationJob.join()
+        delay(300)
+        onCompleted(resultPlan)
     }
 
     val infiniteTransition = rememberInfiniteTransition(label = "robot_anim")
@@ -766,7 +808,7 @@ private fun AIStudyPlannerAdjustingView(
             TopAppBar(
                 title = {
                     Text(
-                        text = "Điều chỉnh kế hoạch",
+                        text = "AI đang xử lý kế hoạch",
                         fontWeight = FontWeight.Bold,
                         fontSize = 19.sp
                     )
@@ -800,7 +842,7 @@ private fun AIStudyPlannerAdjustingView(
                 // 3D Glowing Robot Character Avatar
                 Box(
                     modifier = Modifier
-                        .size(160.dp)
+                        .size(150.dp)
                         .offset(y = floatOffset.dp)
                         .scale(pulseScale),
                     contentAlignment = Alignment.Center
@@ -808,13 +850,13 @@ private fun AIStudyPlannerAdjustingView(
                     // Outer aura glow
                     Box(
                         modifier = Modifier
-                            .size(150.dp)
+                            .size(140.dp)
                             .clip(CircleShape)
                             .background(
                                 Brush.radialGradient(
                                     colors = listOf(
-                                        Color(0xFF8B5CF6).copy(alpha = 0.25f),
-                                        Color(0xFF3B82F6).copy(alpha = 0.15f),
+                                        MaterialTheme.colorScheme.primary.copy(alpha = 0.25f),
+                                        Color(0xFF8B5CF6).copy(alpha = 0.15f),
                                         Color.Transparent
                                     )
                                 )
@@ -823,10 +865,10 @@ private fun AIStudyPlannerAdjustingView(
 
                     // Robot head / body container
                     Surface(
-                        modifier = Modifier.size(100.dp),
-                        shape = RoundedCornerShape(32.dp),
+                        modifier = Modifier.size(96.dp),
+                        shape = RoundedCornerShape(30.dp),
                         color = Color.White,
-                        shadowElevation = 10.dp,
+                        shadowElevation = 8.dp,
                         border = androidx.compose.foundation.BorderStroke(2.dp, Color(0xFFE2E8F0))
                     ) {
                         Box(
@@ -842,26 +884,26 @@ private fun AIStudyPlannerAdjustingView(
                             // Visor / Screen Face
                             Box(
                                 modifier = Modifier
-                                    .size(width = 68.dp, height = 44.dp)
-                                    .clip(RoundedCornerShape(18.dp))
+                                    .size(width = 64.dp, height = 40.dp)
+                                    .clip(RoundedCornerShape(16.dp))
                                     .background(Color(0xFF0F172A)),
                                 contentAlignment = Alignment.Center
                             ) {
                                 // Glowing eyes
                                 Row(
-                                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(10.dp),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Box(
                                         modifier = Modifier
-                                            .size(width = 12.dp, height = 16.dp)
-                                            .clip(RoundedCornerShape(6.dp))
+                                            .size(width = 10.dp, height = 14.dp)
+                                            .clip(RoundedCornerShape(5.dp))
                                             .background(Color(0xFF38BDF8))
                                     )
                                     Box(
                                         modifier = Modifier
-                                            .size(width = 12.dp, height = 16.dp)
-                                            .clip(RoundedCornerShape(6.dp))
+                                            .size(width = 10.dp, height = 14.dp)
+                                            .clip(RoundedCornerShape(5.dp))
                                             .background(Color(0xFF38BDF8))
                                     )
                                 }
@@ -877,7 +919,7 @@ private fun AIStudyPlannerAdjustingView(
                         modifier = Modifier
                             .size(24.dp)
                             .align(Alignment.TopEnd)
-                            .offset(x = (-10).dp, y = 10.dp)
+                            .offset(x = (-8).dp, y = 8.dp)
                     )
                     Icon(
                         Icons.Default.AutoAwesome,
@@ -886,37 +928,37 @@ private fun AIStudyPlannerAdjustingView(
                         modifier = Modifier
                             .size(20.dp)
                             .align(Alignment.BottomStart)
-                            .offset(x = 10.dp, y = (-10).dp)
+                            .offset(x = 8.dp, y = (-8).dp)
                     )
                 }
 
-                Spacer(modifier = Modifier.height(28.dp))
+                Spacer(modifier = Modifier.height(24.dp))
 
                 Text(
-                    text = "AI đang điều chỉnh kế hoạch",
+                    text = "AI đang đọc chi tiết nhiệm vụ",
                     fontWeight = FontWeight.Bold,
                     fontSize = 20.sp,
                     color = MaterialTheme.colorScheme.onBackground
                 )
                 Text(
-                    text = "cho bạn...",
-                    fontSize = 15.sp,
+                    text = "và kiểm tra lịch trống để tránh trùng...",
+                    fontSize = 14.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
 
-                Spacer(modifier = Modifier.height(36.dp))
+                Spacer(modifier = Modifier.height(32.dp))
 
                 // Steps Progress List
                 val steps = listOf(
-                    "Phân tích tiến độ học tập",
-                    "Đánh giá thời gian rảnh",
-                    "Tối ưu lịch học",
-                    "Cập nhật kế hoạch"
+                    "Đọc tên môn, mục tiêu, hạn chót & mức ưu tiên",
+                    "Kiểm tra các sự kiện đã có để tránh hoàn toàn trùng giờ",
+                    "Phân tích khung giờ rảnh (${selectedTimeSlots.joinToString(", ")})",
+                    "Tối ưu hóa các phiên học & hoàn thiện kế hoạch"
                 )
 
                 Column(
                     modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(18.dp)
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
                     steps.forEachIndexed { index, stepTitle ->
                         val stepIndex = index + 1
@@ -930,9 +972,10 @@ private fun AIStudyPlannerAdjustingView(
                         ) {
                             Text(
                                 text = stepTitle,
-                                fontSize = 15.sp,
+                                fontSize = 14.sp,
                                 fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Medium,
-                                color = if (isDone || isCurrent) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                                color = if (isDone || isCurrent) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                                modifier = Modifier.weight(1f)
                             )
 
                             if (isDone) {
@@ -954,14 +997,14 @@ private fun AIStudyPlannerAdjustingView(
                                 CircularProgressIndicator(
                                     modifier = Modifier.size(20.dp),
                                     strokeWidth = 2.dp,
-                                    color = Color(0xFF3B82F6)
+                                    color = MaterialTheme.colorScheme.primary
                                 )
                             } else {
                                 Box(
                                     modifier = Modifier
-                                        .size(22.dp)
+                                        .size(20.dp)
                                         .clip(CircleShape)
-                                        .border(2.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f), CircleShape)
+                                        .border(1.5.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f), CircleShape)
                                 )
                             }
                         }
@@ -973,9 +1016,9 @@ private fun AIStudyPlannerAdjustingView(
             Surface(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(bottom = 24.dp),
+                    .padding(bottom = 12.dp),
                 shape = RoundedCornerShape(16.dp),
-                color = Color(0xFFF0F7FF)
+                color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f)
             ) {
                 Row(
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
@@ -984,15 +1027,15 @@ private fun AIStudyPlannerAdjustingView(
                     Icon(
                         Icons.Default.AutoAwesome,
                         contentDescription = null,
-                        tint = Color(0xFF2563EB),
+                        tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(20.dp)
                     )
                     Spacer(modifier = Modifier.width(10.dp))
                     Text(
-                        text = "AI sẽ giúp bạn học hiệu quả hơn mỗi ngày!",
-                        fontSize = 13.sp,
+                        text = "AI sẽ tự động né các sự kiện đã có để bạn không bị trùng lịch!",
+                        fontSize = 12.sp,
                         fontWeight = FontWeight.Medium,
-                        color = Color(0xFF1E40AF)
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                 }
             }
@@ -1008,6 +1051,7 @@ private fun AIStudyPlannerAdjustingView(
 private fun AIStudyPlannerResultView(
     onBack: () -> Unit,
     taskList: List<StudyTaskItem>,
+    initialSchedule: Map<Int, List<PlanTimelineItem>>,
     scheduleViewModel: ScheduleViewModel?,
     onApplied: () -> Unit
 ) {
@@ -1015,165 +1059,38 @@ private fun AIStudyPlannerResultView(
     val coroutineScope = rememberCoroutineScope()
 
     var selectedTab by remember { mutableIntStateOf(0) } // 0: Tuần này, 1: Toàn bộ
-    var selectedDayIndex by remember { mutableIntStateOf(1) } // 0: T2 (17) -> 1: T3 (18)
 
-    val daysOfWeek = listOf(
-        Pair("T2", 17),
-        Pair("T3", 18),
-        Pair("T4", 19),
-        Pair("T5", 20),
-        Pair("T6", 21),
-        Pair("T7", 22),
-        Pair("CN", 23)
-    )
+    val now = remember { LocalDate.now() }
+    val todayStartOfWeek = remember(now) { now.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY)) }
+    val todayDayOfWeekIndex = remember(now) {
+        // Monday = 0, Tuesday = 1, ..., Sunday = 6
+        (now.dayOfWeek.value - 1).coerceIn(0, 6)
+    }
 
-    // Schedule map per day index to allow editing, deleting, and adding events
-    val scheduleByDay = remember {
-        mutableStateMapOf<Int, List<PlanTimelineItem>>(
-            0 to listOf(
-                PlanTimelineItem(
-                    time = "08:00",
-                    title = "Machine Learning",
-                    subtitle = "Lý thuyết Gradient Descent",
-                    accentColor = Color(0xFF8B5CF6)
-                ),
-                PlanTimelineItem(
-                    time = "13:30",
-                    title = "Data Structures",
-                    subtitle = "Cây nhị phân và đồ thị",
-                    accentColor = Color(0xFF10B981)
-                ),
-                PlanTimelineItem(
-                    time = "19:00",
-                    title = "Deep Learning Project",
-                    subtitle = "Chuẩn bị Dataset",
-                    accentColor = Color(0xFF06B6D4)
-                )
-            ),
-            1 to listOf(
-                PlanTimelineItem(
-                    time = "08:00",
-                    title = "Đại số tuyến tính",
-                    subtitle = "(Trên lớp)",
-                    accentColor = Color(0xFF3B82F6)
-                ),
-                PlanTimelineItem(
-                    time = "10:00",
-                    title = "Nghỉ trưa",
-                    subtitle = "",
-                    accentColor = Color(0xFF94A3B8),
-                    isBreak = true
-                ),
-                PlanTimelineItem(
-                    time = "13:00",
-                    title = "Data Structures",
-                    subtitle = "Ôn tập chương 3",
-                    accentColor = Color(0xFF10B981)
-                ),
-                PlanTimelineItem(
-                    time = "19:00",
-                    title = "Machine Learning",
-                    subtitle = "Ôn thi cuối kỳ",
-                    accentColor = Color(0xFF8B5CF6)
-                ),
-                PlanTimelineItem(
-                    time = "21:30",
-                    title = "Deep Learning Project",
-                    subtitle = "Làm phần 2",
-                    accentColor = Color(0xFF06B6D4)
-                )
-            ),
-            2 to listOf(
-                PlanTimelineItem(
-                    time = "08:30",
-                    title = "Machine Learning",
-                    subtitle = "Thực hành PyTorch",
-                    accentColor = Color(0xFF8B5CF6)
-                ),
-                PlanTimelineItem(
-                    time = "14:00",
-                    title = "Deep Learning Project",
-                    subtitle = "Huấn luyện mô hình CNN",
-                    accentColor = Color(0xFF06B6D4)
-                ),
-                PlanTimelineItem(
-                    time = "19:30",
-                    title = "Data Structures",
-                    subtitle = "Luyện tập bài tập LeetCode",
-                    accentColor = Color(0xFF10B981)
-                )
-            ),
-            3 to listOf(
-                PlanTimelineItem(
-                    time = "09:00",
-                    title = "Data Structures",
-                    subtitle = "Ôn tập Đồ thị (Graph)",
-                    accentColor = Color(0xFF10B981)
-                ),
-                PlanTimelineItem(
-                    time = "14:00",
-                    title = "Nghỉ ngơi & Thể thao",
-                    subtitle = "Chạy bộ",
-                    accentColor = Color(0xFF94A3B8),
-                    isBreak = true
-                ),
-                PlanTimelineItem(
-                    time = "19:00",
-                    title = "Deep Learning Project",
-                    subtitle = "Viết báo cáo kỹ thuật",
-                    accentColor = Color(0xFF06B6D4)
-                )
-            ),
-            4 to listOf(
-                PlanTimelineItem(
-                    time = "08:00",
-                    title = "Machine Learning",
-                    subtitle = "Ôn tập trắc nghiệm",
-                    accentColor = Color(0xFF8B5CF6)
-                ),
-                PlanTimelineItem(
-                    time = "15:00",
-                    title = "Đại số tuyến tính",
-                    subtitle = "Làm bài tập ma trận",
-                    accentColor = Color(0xFF3B82F6)
-                ),
-                PlanTimelineItem(
-                    time = "20:00",
-                    title = "Tổng kết tuần",
-                    subtitle = "Đánh giá tiến độ học",
-                    accentColor = Color(0xFF10B981)
-                )
-            ),
-            5 to listOf(
-                PlanTimelineItem(
-                    time = "09:00",
-                    title = "Machine Learning",
-                    subtitle = "Giải đề thi các năm trước",
-                    accentColor = Color(0xFF8B5CF6)
-                ),
-                PlanTimelineItem(
-                    time = "14:30",
-                    title = "Deep Learning Project",
-                    subtitle = "Kiểm thử mô hình",
-                    accentColor = Color(0xFF06B6D4)
-                )
-            ),
-            6 to listOf(
-                PlanTimelineItem(
-                    time = "09:30",
-                    title = "Ôn tập tổng hợp",
-                    subtitle = "Xem lại toàn bộ kiến thức",
-                    accentColor = Color(0xFF3B82F6)
-                ),
-                PlanTimelineItem(
-                    time = "15:00",
-                    title = "Thư giãn & Chuẩn bị tuần mới",
-                    subtitle = "",
-                    accentColor = Color(0xFF94A3B8),
-                    isBreak = true
-                )
-            )
+    var selectedDayIndex by remember { mutableIntStateOf(todayDayOfWeekIndex) }
+
+    val daysOfWeek = remember(todayStartOfWeek) {
+        listOf(
+            Pair("T2", todayStartOfWeek.dayOfMonth),
+            Pair("T3", todayStartOfWeek.plusDays(1).dayOfMonth),
+            Pair("T4", todayStartOfWeek.plusDays(2).dayOfMonth),
+            Pair("T5", todayStartOfWeek.plusDays(3).dayOfMonth),
+            Pair("T6", todayStartOfWeek.plusDays(4).dayOfMonth),
+            Pair("T7", todayStartOfWeek.plusDays(5).dayOfMonth),
+            Pair("CN", todayStartOfWeek.plusDays(6).dayOfMonth)
         )
+    }
+
+    val weekDateRangeTitle = remember(todayStartOfWeek) {
+        val endOfWeek = todayStartOfWeek.plusDays(6)
+        "⟨  ${todayStartOfWeek.dayOfMonth} - ${endOfWeek.dayOfMonth} Tháng ${todayStartOfWeek.monthValue}, ${todayStartOfWeek.year}  ⟩"
+    }
+
+    // Mutable schedule map per day index to allow editing, deleting, and adding events
+    val scheduleByDay = remember(initialSchedule) {
+        mutableStateMapOf<Int, List<PlanTimelineItem>>().apply {
+            putAll(initialSchedule)
+        }
     }
 
     var timelineItemToEdit by remember { mutableStateOf<Pair<Int, PlanTimelineItem>?>(null) }
@@ -1210,15 +1127,12 @@ private fun AIStudyPlannerResultView(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 20.dp, vertical = 14.dp)
+                        .padding(horizontal = 16.dp, vertical = 10.dp)
                 ) {
                     Button(
                         onClick = {
                             if (scheduleViewModel != null) {
                                 coroutineScope.launch {
-                                    val now = LocalDate.now()
-                                    val todayStartOfWeek = now.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
-
                                     val eventsToInsert = mutableListOf<Event>()
                                     scheduleByDay.forEach { (dayIdx, items) ->
                                         val targetDate = todayStartOfWeek.plusDays(dayIdx.toLong())
@@ -1242,7 +1156,7 @@ private fun AIStudyPlannerResultView(
                                                     endTime = endDt,
                                                     category = timelineItem.category,
                                                     isCompleted = false,
-                                                    reminderNote = "Lịch học tự động tạo bởi AI Study Planner",
+                                                    reminderNote = "Lịch học tự động tạo bởi AI Planner",
                                                     hasReminder = true,
                                                     reminderTimeOffsetMins = 15
                                                 )
@@ -1259,9 +1173,9 @@ private fun AIStudyPlannerResultView(
                         },
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(52.dp),
-                        shape = RoundedCornerShape(26.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2563EB))
+                            .height(50.dp),
+                        shape = RoundedCornerShape(25.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(Icons.Default.Check, contentDescription = null, tint = Color.White)
@@ -1289,7 +1203,7 @@ private fun AIStudyPlannerResultView(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(vertical = 6.dp),
+                    .padding(vertical = 4.dp),
                 horizontalArrangement = Arrangement.Center
             ) {
                 Surface(
@@ -1303,14 +1217,14 @@ private fun AIStudyPlannerResultView(
                                 .clip(RoundedCornerShape(16.dp))
                                 .clickable { selectedTab = 0 },
                             shape = RoundedCornerShape(16.dp),
-                            color = if (selectedTab == 0) Color.White else Color.Transparent,
+                            color = if (selectedTab == 0) MaterialTheme.colorScheme.surface else Color.Transparent,
                             shadowElevation = if (selectedTab == 0) 2.dp else 0.dp
                         ) {
                             Text(
                                 text = "Tuần này",
                                 fontSize = 13.sp,
                                 fontWeight = if (selectedTab == 0) FontWeight.Bold else FontWeight.Normal,
-                                color = if (selectedTab == 0) Color(0xFF1E293B) else MaterialTheme.colorScheme.onSurfaceVariant,
+                                color = if (selectedTab == 0) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)
                             )
                         }
@@ -1320,14 +1234,14 @@ private fun AIStudyPlannerResultView(
                                 .clip(RoundedCornerShape(16.dp))
                                 .clickable { selectedTab = 1 },
                             shape = RoundedCornerShape(16.dp),
-                            color = if (selectedTab == 1) Color.White else Color.Transparent,
+                            color = if (selectedTab == 1) MaterialTheme.colorScheme.surface else Color.Transparent,
                             shadowElevation = if (selectedTab == 1) 2.dp else 0.dp
                         ) {
                             Text(
                                 text = "Toàn bộ",
                                 fontSize = 13.sp,
                                 fontWeight = if (selectedTab == 1) FontWeight.Bold else FontWeight.Normal,
-                                color = if (selectedTab == 1) Color(0xFF1E293B) else MaterialTheme.colorScheme.onSurfaceVariant,
+                                color = if (selectedTab == 1) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)
                             )
                         }
@@ -1335,7 +1249,7 @@ private fun AIStudyPlannerResultView(
                 }
             }
 
-            Spacer(modifier = Modifier.height(10.dp))
+            Spacer(modifier = Modifier.height(8.dp))
 
             // Week Range Selector
             Row(
@@ -1344,7 +1258,7 @@ private fun AIStudyPlannerResultView(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "⟨  17 - 23 Tháng 8, 2026  ⟩",
+                    text = weekDateRangeTitle,
                     fontWeight = FontWeight.Bold,
                     fontSize = 15.sp,
                     color = MaterialTheme.colorScheme.onBackground
@@ -1360,9 +1274,9 @@ private fun AIStudyPlannerResultView(
                 }
             }
 
-            Spacer(modifier = Modifier.height(10.dp))
+            Spacer(modifier = Modifier.height(8.dp))
 
-            // Days Strip: T2 (17) -> CN (23)
+            // Days Strip: T2 -> CN
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween
@@ -1379,7 +1293,7 @@ private fun AIStudyPlannerResultView(
                         Text(
                             text = dayName,
                             fontSize = 12.sp,
-                            color = if (isSelected) Color(0xFF2563EB) else MaterialTheme.colorScheme.onSurfaceVariant,
+                            color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
                         )
                         Spacer(modifier = Modifier.height(6.dp))
@@ -1387,7 +1301,7 @@ private fun AIStudyPlannerResultView(
                             modifier = Modifier
                                 .size(36.dp)
                                 .clip(CircleShape)
-                                .background(if (isSelected) Color(0xFF2563EB) else Color.Transparent),
+                                .background(if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent),
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
@@ -1420,7 +1334,7 @@ private fun AIStudyPlannerResultView(
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
-                            text = "Không có lịch trình trong ngày này",
+                            text = "Không có lịch học trong ngày này",
                             fontSize = 14.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -1438,7 +1352,7 @@ private fun AIStudyPlannerResultView(
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
                     verticalArrangement = Arrangement.spacedBy(12.dp),
-                    contentPadding = PaddingValues(bottom = 20.dp)
+                    contentPadding = PaddingValues(bottom = 12.dp)
                 ) {
                     items(currentDayItems, key = { it.id }) { item ->
                         TimelineItemRow(
@@ -1619,7 +1533,7 @@ private fun TimelineItemRow(
                             Icon(
                                 Icons.Outlined.Edit,
                                 contentDescription = "Chỉnh sửa",
-                                tint = Color(0xFF2563EB),
+                                tint = MaterialTheme.colorScheme.primary,
                                 modifier = Modifier.size(16.dp)
                             )
                         }
@@ -1653,8 +1567,8 @@ private fun TaskUpsertDialog(
     val isEdit = initialTask != null
     var title by remember { mutableStateOf(initialTask?.title ?: "") }
     var subtitle by remember { mutableStateOf(initialTask?.subtitle ?: "") }
-    var deadline by remember { mutableStateOf(initialTask?.deadline ?: "15/09/2026") }
-    var hours by remember { mutableStateOf(initialTask?.hours?.toString() ?: "10") }
+    var deadline by remember { mutableStateOf(initialTask?.deadline ?: "") }
+    var hours by remember { mutableStateOf(initialTask?.hours?.toString() ?: "8") }
     var difficulty by remember { mutableStateOf(initialTask?.difficulty ?: TaskDifficulty.MEDIUM) }
 
     AlertDialog(
@@ -1674,8 +1588,8 @@ private fun TaskUpsertDialog(
                 OutlinedTextField(
                     value = title,
                     onValueChange = { title = it },
-                    label = { Text("Tên môn / nhiệm vụ") },
-                    placeholder = { Text("VD: Machine Learning") },
+                    label = { Text("Tên môn / nhiệm vụ *") },
+                    placeholder = { Text("VD: Machine Learning, Toán cao cấp...") },
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(10.dp),
                     singleLine = true
@@ -1684,8 +1598,8 @@ private fun TaskUpsertDialog(
                 OutlinedTextField(
                     value = subtitle,
                     onValueChange = { subtitle = it },
-                    label = { Text("Ghi chú / mục tiêu") },
-                    placeholder = { Text("VD: Ôn thi cuối kỳ") },
+                    label = { Text("Ghi chú / mục tiêu chi tiết") },
+                    placeholder = { Text("VD: Ôn thi chương 1-4, làm bài tập nhóm...") },
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(10.dp),
                     singleLine = true
@@ -1699,6 +1613,7 @@ private fun TaskUpsertDialog(
                         value = deadline,
                         onValueChange = { deadline = it },
                         label = { Text("Hạn chót") },
+                        placeholder = { Text("15/09/2026") },
                         modifier = Modifier.weight(1.1f),
                         shape = RoundedCornerShape(10.dp),
                         singleLine = true
@@ -1715,7 +1630,7 @@ private fun TaskUpsertDialog(
                 }
 
                 Text(
-                    text = "Mức độ ưu tiên:",
+                    text = "Mức độ ưu tiên / độ khó:",
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Medium
                 )
@@ -1737,7 +1652,7 @@ private fun TaskUpsertDialog(
                         ) {
                             Text(
                                 text = diff.title,
-                                fontSize = 12.sp,
+                                fontSize = 11.sp,
                                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
                                 color = if (isSelected) diff.color else MaterialTheme.colorScheme.onSurface,
                                 textAlign = TextAlign.Center,
@@ -1761,9 +1676,9 @@ private fun TaskUpsertDialog(
                             StudyTaskItem(
                                 id = initialTask?.id ?: UUID.randomUUID().toString(),
                                 title = title.trim(),
-                                subtitle = subtitle.trim().ifBlank { "Nhiệm vụ học tập" },
+                                subtitle = subtitle.trim(),
                                 deadline = deadline.trim(),
-                                hours = hours.toIntOrNull() ?: 10,
+                                hours = hours.toIntOrNull() ?: 8,
                                 difficulty = difficulty,
                                 accentColor = accentColor
                             )
@@ -1867,7 +1782,7 @@ private fun TimelineItemUpsertDialog(
                             when {
                                 title.contains("Machine", ignoreCase = true) || title.contains("AI", ignoreCase = true) -> Color(0xFF8B5CF6)
                                 title.contains("Deep", ignoreCase = true) -> Color(0xFF06B6D4)
-                                title.contains("Data", ignoreCase = true) -> Color(0xFF10B981)
+                                title.contains("Data", ignoreCase = true) || title.contains("Toán", ignoreCase = true) -> Color(0xFF10B981)
                                 else -> Color(0xFF3B82F6)
                             }
                         }
@@ -1895,4 +1810,486 @@ private fun TimelineItemUpsertDialog(
             }
         }
     )
+}
+
+// -------------------------------------------------------------------------------------------------
+// 5. REAL AI SCHEDULING LOGIC WITH GEMINI AND INTELLIGENT RULE-BASED FALLBACK (CONFLICT AVOIDANCE)
+// -------------------------------------------------------------------------------------------------
+private suspend fun generateStudyPlan(
+    geminiService: GeminiApiService,
+    studyGoal: String,
+    taskList: List<StudyTaskItem>,
+    selectedTimeSlots: Set<String>,
+    existingEvents: List<Event>,
+    todayStartOfWeek: LocalDate
+): Map<Int, List<PlanTimelineItem>> {
+    val apiKey = AiConfigHelper.getEffectiveApiKey()
+
+    if (apiKey.isNotBlank() && taskList.isNotEmpty()) {
+        try {
+            val taskListSummary = taskList.mapIndexed { idx, t ->
+                "${idx + 1}. Môn/Nhiệm vụ: \"${t.title}\", Ghi chú/Mục tiêu: \"${t.subtitle.ifBlank { "Không có" }}\", Hạn chót: \"${t.deadline.ifBlank { "Không có" }}\", Tổng số giờ cần học: ${t.hours} giờ, Mức độ ưu tiên/Độ khó: ${t.difficulty.title}"
+            }.joinToString("\n")
+
+            val timeFormat = DateTimeFormatter.ofPattern("HH:mm")
+            val dateFormat = DateTimeFormatter.ofPattern("dd/MM")
+
+            val existingEventsSummary = (0..6).joinToString("\n") { dayIdx ->
+                val date = todayStartOfWeek.plusDays(dayIdx.toLong())
+                val dayName = when (dayIdx) {
+                    0 -> "Thứ 2"
+                    1 -> "Thứ 3"
+                    2 -> "Thứ 4"
+                    3 -> "Thứ 5"
+                    4 -> "Thứ 6"
+                    5 -> "Thứ 7"
+                    else -> "Chủ Nhật"
+                }
+                val eventsOnDay = existingEvents.filter { it.startTime.toLocalDate() == date }
+                if (eventsOnDay.isEmpty()) {
+                    "- $dayName (dayIndex $dayIdx, ngày ${date.format(dateFormat)}): Trống cả ngày (chưa có sự kiện nào)."
+                } else {
+                    val evList = eventsOnDay.joinToString(", ") { e ->
+                        "\"${e.title}\" (${e.startTime.format(timeFormat)} - ${e.endTime.format(timeFormat)})"
+                    }
+                    "- $dayName (dayIndex $dayIdx, ngày ${date.format(dateFormat)}): ĐÃ CÓ SỰ KIỆN: [$evList] -> YÊU CẦU: TUYỆT ĐỐI KHÔNG XẾP LỊCH TRÙNG CÁC GIỜ NÀY!"
+                }
+            }
+
+            val prompt = buildString {
+                append("Bạn là chuyên gia lập kế hoạch học tập thông minh (AI Planner).\n")
+                append("Hãy đọc kỹ từng môn học/nhiệm vụ dưới đây để phân bổ lịch trình học tập cho cả tuần (Thứ 2 đến Chủ Nhật, tương ứng dayIndex từ 0 đến 6):\n\n")
+                append("=== THÔNG TIN NGƯỜI DÙNG CUNG CẤP ===\n")
+                if (studyGoal.isNotBlank()) {
+                    append("- Mục tiêu chung: $studyGoal\n")
+                }
+                append("- Các khung giờ rảnh được chọn: ${selectedTimeSlots.joinToString(", ")}\n")
+                append("  (Tham khảo: Sáng: 08:00 - 11:30, Chiều: 13:30 - 17:00, Tối: 19:00 - 22:30, Cuối tuần: T7 & CN)\n")
+                append("- Danh sách môn học / nhiệm vụ cụ thể cần lên lịch:\n")
+                append(taskListSummary)
+                append("\n\n")
+                append("=== DANH SÁCH SỰ KIỆN ĐÃ CÓ TRONG LỊCH BIỂU (QUAN TRỌNG - TRÁNH TRÙNG LỊCH) ===\n")
+                append(existingEventsSummary)
+                append("\n\n")
+                append("=== NGUYÊN TẮC XẾP LỊCH BẰNG AI ===\n")
+                append("1. TUYỆT ĐỐI KHÔNG TẠO SỰ KIỆN TRÙNG LỊCH: Nếu một ngày nào đó trong tuần đã có sự kiện đã lên lịch, KHÔNG ĐƯỢC xếp môn học hay giờ giải lao trùng vào khoảng thời gian đó. Hãy né khung giờ đã có sự kiện ra (xếp trước hoặc sau sự kiện đó ít nhất 15 phút, hoặc chọn khung giờ trống khác trong ngày, hoặc xếp vào ngày khác).\n")
+                append("2. Đọc đúng tên từng môn học và ghi chú/mục tiêu của môn đó.\n")
+                append("3. Phân bổ các môn có độ ưu tiên cao (Khó) hoặc hạn chót gần vào các khung giờ tập trung tốt và nhiều buổi hơn.\n")
+                append("4. Chia nhỏ số giờ cần học của từng môn thành các buổi học hợp lý (khoảng 1.5 - 2 giờ mỗi buổi) rải đều trong tuần.\n")
+                append("5. Phần 'subtitle' của từng sự kiện phải ghi rõ nội dung/mục tiêu của buổi học đó (ví dụ: 'Ôn tập lý thuyết', 'Làm bài tập chương 2', 'Luyện đề trắc nghiệm', dựa theo ghi chú của môn).\n")
+                append("6. Thêm các buổi nghỉ ngơi/giải lao ngắn (isBreak = true, category = 'PLAY').\n")
+                append("7. Chỉ xếp lịch vào các buổi/khung giờ người dùng rảnh (${selectedTimeSlots.joinToString(", ")}).\n")
+                append("8. Bắt buộc xuất kết quả dưới dạng JSON Array duy nhất theo mẫu sau, không bọc văn bản thừa:\n")
+                append("[\n")
+                append("  {\n")
+                append("    \"dayIndex\": 0,\n")
+                append("    \"time\": \"08:30\",\n")
+                append("    \"title\": \"Tên môn học\",\n")
+                append("    \"subtitle\": \"Nội dung buổi học cụ thể\",\n")
+                append("    \"isBreak\": false,\n")
+                append("    \"category\": \"STUDY\"\n")
+                append("  }\n")
+                append("]\n")
+                append("Ghi chú: dayIndex là số nguyên từ 0 (Thứ 2) đến 6 (Chủ Nhật). time là chuỗi 'HH:mm'.")
+            }
+
+            val request = GeminiRequest(
+                contents = listOf(
+                    GeminiContent(
+                        role = "user",
+                        parts = listOf(GeminiPart(text = prompt))
+                    )
+                ),
+                generationConfig = GeminiGenerationConfig(
+                    temperature = 0.4f,
+                    topP = 0.95f,
+                    topK = 40
+                )
+            )
+
+            val response = geminiService.generateContent(
+                model = GeminiApiService.MODEL_GEMINI_DEFAULT,
+                apiKey = apiKey,
+                request = request
+            )
+
+            val responseText = response.candidates?.firstOrNull()?.content?.parts?.firstOrNull()?.text ?: ""
+            Log.d("AIPlanner", "Gemini response: $responseText")
+
+            val parsedPlan = parseGeminiPlanJson(responseText, taskList)
+            if (parsedPlan.isNotEmpty()) {
+                // Post-process with deterministic conflict avoidance against existing calendar events
+                return resolveAndAvoidConflicts(parsedPlan, existingEvents, todayStartOfWeek, selectedTimeSlots)
+            }
+        } catch (e: Exception) {
+            Log.e("AIPlanner", "Error calling Gemini for study plan", e)
+        }
+    }
+
+    // Fallback: Intelligent rule-based scheduler based on exact user tasks, priority, deadline, and free slots
+    return generateFallbackPlan(taskList, selectedTimeSlots, existingEvents, todayStartOfWeek)
+}
+
+private fun parseGeminiPlanJson(
+    jsonText: String,
+    taskList: List<StudyTaskItem>
+): Map<Int, List<PlanTimelineItem>> {
+    val result = mutableMapOf<Int, MutableList<PlanTimelineItem>>()
+
+    try {
+        // Extract json array substring
+        val startIdx = jsonText.indexOf('[')
+        val endIdx = jsonText.lastIndexOf(']')
+        if (startIdx != -1 && endIdx != -1 && endIdx > startIdx) {
+            val jsonArrayStr = jsonText.substring(startIdx, endIdx + 1)
+            val jsonArray = JSONArray(jsonArrayStr)
+
+            // Map task titles to colors
+            val taskColorMap = taskList.associate { it.title.trim().lowercase() to it.accentColor }
+
+            for (i in 0 until jsonArray.length()) {
+                val obj = jsonArray.getJSONObject(i)
+                val dayIndex = obj.optInt("dayIndex", 0).coerceIn(0, 6)
+                val time = obj.optString("time", "08:00")
+                val title = obj.optString("title", "Môn học")
+                val subtitle = obj.optString("subtitle", "")
+                val isBreak = obj.optBoolean("isBreak", false)
+                val categoryStr = obj.optString("category", "STUDY")
+
+                val accentColor = if (isBreak) {
+                    Color(0xFF94A3B8)
+                } else {
+                    taskColorMap[title.trim().lowercase()]
+                        ?: taskList.find { title.contains(it.title, ignoreCase = true) }?.accentColor
+                        ?: when {
+                            title.contains("Machine", ignoreCase = true) || title.contains("AI", ignoreCase = true) -> Color(0xFF8B5CF6)
+                            title.contains("Deep", ignoreCase = true) -> Color(0xFF06B6D4)
+                            else -> Color(0xFF3B82F6)
+                        }
+                }
+
+                val item = PlanTimelineItem(
+                    id = UUID.randomUUID().toString(),
+                    time = time,
+                    title = title,
+                    subtitle = subtitle,
+                    accentColor = accentColor,
+                    category = if (isBreak) EventCategory.PLAY else EventCategory.STUDY,
+                    isBreak = isBreak
+                )
+
+                result.getOrPut(dayIndex) { mutableListOf() }.add(item)
+            }
+
+            // Sort each day by time
+            return result.mapValues { (_, items) -> items.sortedBy { it.time } }
+        }
+    } catch (e: Exception) {
+        Log.e("AIPlanner", "Failed to parse Gemini json", e)
+    }
+
+    return emptyMap()
+}
+
+/**
+ * Checks all generated timeline items against existing calendar events for the week,
+ * shifting or reassigning items to non-conflicting free time slots to prevent any overlap.
+ */
+private fun resolveAndAvoidConflicts(
+    rawPlan: Map<Int, List<PlanTimelineItem>>,
+    existingEvents: List<Event>,
+    todayStartOfWeek: LocalDate,
+    selectedTimeSlots: Set<String>
+): Map<Int, List<PlanTimelineItem>> {
+    val result = mutableMapOf<Int, MutableList<PlanTimelineItem>>()
+
+    val hasMorning = selectedTimeSlots.contains("Sáng")
+    val hasAfternoon = selectedTimeSlots.contains("Chiều")
+    val hasEvening = selectedTimeSlots.contains("Tối")
+    val hasWeekend = selectedTimeSlots.contains("Cuối tuần")
+
+    val allowedDays = if (hasWeekend) (0..6).toSet() else (0..4).toSet()
+
+    // Flatten all items to schedule
+    val itemsToPlace = mutableListOf<Pair<Int, PlanTimelineItem>>()
+    rawPlan.forEach { (dayIdx, items) ->
+        items.forEach { item ->
+            itemsToPlace.add(Pair(dayIdx, item))
+        }
+    }
+
+    val placedRangesByDay = mutableMapOf<Int, MutableList<Pair<LocalTime, LocalTime>>>()
+
+    for ((preferredDayIdx, item) in itemsToPlace) {
+        val durationMins = if (item.isBreak) 20 else 90
+
+        // Preferred day first, then other allowed days
+        val dayCandidates = listOf(preferredDayIdx).filter { allowedDays.contains(it) } +
+                allowedDays.filter { it != preferredDayIdx }
+
+        var placed = false
+
+        for (dayIdx in dayCandidates) {
+            val date = todayStartOfWeek.plusDays(dayIdx.toLong())
+            val existingOnDay = existingEvents.filter { it.startTime.toLocalDate() == date }
+            val placedRanges = placedRangesByDay.getOrPut(dayIdx) { mutableListOf() }
+
+            // If this is the preferred day, check if the original item.time works without conflict
+            val origTime = parseLocalTime(item.time)
+            if (dayIdx == preferredDayIdx && origTime != null) {
+                val origEnd = origTime.plusMinutes(durationMins.toLong())
+                val hasConflictWithExisting = existingOnDay.any { ev ->
+                    origTime.isBefore(ev.endTime.toLocalTime()) && origEnd.isAfter(ev.startTime.toLocalTime())
+                }
+                val hasConflictWithPlaced = placedRanges.any { (pStart, pEnd) ->
+                    origTime.isBefore(pEnd) && origEnd.isAfter(pStart)
+                }
+
+                if (!hasConflictWithExisting && !hasConflictWithPlaced) {
+                    placedRanges.add(Pair(origTime, origEnd))
+                    result.getOrPut(dayIdx) { mutableListOf() }.add(item)
+                    placed = true
+                    break
+                }
+            }
+
+            // Find a free slot candidate on dayIdx that avoids existing events and already placed items
+            val candidateTimes = getCandidateStartTimes(hasMorning, hasAfternoon, hasEvening)
+            for (cTime in candidateTimes) {
+                val cEnd = cTime.plusMinutes(durationMins.toLong())
+                val hasConflictWithExisting = existingOnDay.any { ev ->
+                    cTime.isBefore(ev.endTime.toLocalTime()) && cEnd.isAfter(ev.startTime.toLocalTime())
+                }
+                val hasConflictWithPlaced = placedRanges.any { (pStart, pEnd) ->
+                    cTime.isBefore(pEnd) && cEnd.isAfter(pStart)
+                }
+
+                if (!hasConflictWithExisting && !hasConflictWithPlaced) {
+                    val formattedTime = String.format("%02d:%02d", cTime.hour, cTime.minute)
+                    placedRanges.add(Pair(cTime, cEnd))
+                    result.getOrPut(dayIdx) { mutableListOf() }.add(item.copy(time = formattedTime))
+                    placed = true
+                    break
+                }
+            }
+
+            if (placed) break
+        }
+
+        // If no non-conflicting slot was found, place into preferred day to not drop the task
+        if (!placed) {
+            result.getOrPut(preferredDayIdx) { mutableListOf() }.add(item)
+        }
+    }
+
+    return result.mapValues { (_, items) -> items.sortedBy { it.time } }
+}
+
+private fun parseLocalTime(timeStr: String): LocalTime? {
+    return try {
+        val parts = timeStr.trim().split(":")
+        val h = parts[0].toInt()
+        val m = if (parts.size > 1) parts[1].toInt() else 0
+        LocalTime.of(h, m)
+    } catch (e: Exception) {
+        null
+    }
+}
+
+private fun getCandidateStartTimes(
+    hasMorning: Boolean,
+    hasAfternoon: Boolean,
+    hasEvening: Boolean
+): List<LocalTime> {
+    val list = mutableListOf<LocalTime>()
+    if (hasMorning) {
+        list.add(LocalTime.of(7, 30))
+        list.add(LocalTime.of(8, 0))
+        list.add(LocalTime.of(8, 30))
+        list.add(LocalTime.of(9, 0))
+        list.add(LocalTime.of(9, 30))
+        list.add(LocalTime.of(10, 0))
+        list.add(LocalTime.of(10, 30))
+    }
+    if (hasAfternoon) {
+        list.add(LocalTime.of(13, 30))
+        list.add(LocalTime.of(14, 0))
+        list.add(LocalTime.of(14, 30))
+        list.add(LocalTime.of(15, 0))
+        list.add(LocalTime.of(15, 30))
+        list.add(LocalTime.of(16, 0))
+    }
+    if (hasEvening) {
+        list.add(LocalTime.of(18, 30))
+        list.add(LocalTime.of(19, 0))
+        list.add(LocalTime.of(19, 30))
+        list.add(LocalTime.of(20, 0))
+        list.add(LocalTime.of(20, 30))
+        list.add(LocalTime.of(21, 0))
+    }
+    return list
+}
+
+private fun generateFallbackPlan(
+    taskList: List<StudyTaskItem>,
+    selectedTimeSlots: Set<String>,
+    existingEvents: List<Event>,
+    todayStartOfWeek: LocalDate
+): Map<Int, List<PlanTimelineItem>> {
+    if (taskList.isEmpty()) return emptyMap()
+
+    val result = mutableMapOf<Int, MutableList<PlanTimelineItem>>()
+
+    // Sort tasks by priority (HARD first, then MEDIUM, then EASY)
+    val sortedTasks = taskList.sortedByDescending {
+        when (it.difficulty) {
+            TaskDifficulty.HARD -> 3
+            TaskDifficulty.MEDIUM -> 2
+            TaskDifficulty.EASY -> 1
+        }
+    }
+
+    val hasMorning = selectedTimeSlots.contains("Sáng")
+    val hasAfternoon = selectedTimeSlots.contains("Chiều")
+    val hasEvening = selectedTimeSlots.contains("Tối")
+    val hasWeekend = selectedTimeSlots.contains("Cuối tuần")
+
+    val daysToSchedule = if (hasWeekend) (0..6).toList() else (0..4).toList()
+
+    var taskPointer = 0
+    val placedRangesByDay = mutableMapOf<Int, MutableList<Pair<LocalTime, LocalTime>>>()
+
+    daysToSchedule.forEach { dayIdx ->
+        val date = todayStartOfWeek.plusDays(dayIdx.toLong())
+        val existingOnDay = existingEvents.filter { it.startTime.toLocalDate() == date }
+        val placedRanges = placedRangesByDay.getOrPut(dayIdx) { mutableListOf() }
+        val dayItems = mutableListOf<PlanTimelineItem>()
+
+        fun findFreeSlot(preferredTimes: List<LocalTime>, durationMins: Int): LocalTime? {
+            for (pTime in preferredTimes) {
+                val pEnd = pTime.plusMinutes(durationMins.toLong())
+                val conflictWithExisting = existingOnDay.any { ev ->
+                    pTime.isBefore(ev.endTime.toLocalTime()) && pEnd.isAfter(ev.startTime.toLocalTime())
+                }
+                val conflictWithPlaced = placedRanges.any { (s, e) ->
+                    pTime.isBefore(e) && pEnd.isAfter(s)
+                }
+                if (!conflictWithExisting && !conflictWithPlaced) {
+                    return pTime
+                }
+            }
+            return null
+        }
+
+        if (hasMorning) {
+            val task = sortedTasks[taskPointer % sortedTasks.size]
+            taskPointer++
+            val subTopic = if (task.subtitle.isNotBlank()) task.subtitle else "Học phần trọng tâm"
+
+            val morningCandidates = listOf(
+                LocalTime.of(8, 30),
+                LocalTime.of(8, 0),
+                LocalTime.of(9, 0),
+                LocalTime.of(7, 30),
+                LocalTime.of(9, 30),
+                LocalTime.of(10, 0)
+            )
+            val freeStart = findFreeSlot(morningCandidates, 90)
+            if (freeStart != null) {
+                val freeEnd = freeStart.plusMinutes(90)
+                placedRanges.add(Pair(freeStart, freeEnd))
+                dayItems.add(
+                    PlanTimelineItem(
+                        time = String.format("%02d:%02d", freeStart.hour, freeStart.minute),
+                        title = task.title,
+                        subtitle = subTopic,
+                        accentColor = task.accentColor,
+                        category = EventCategory.STUDY
+                    )
+                )
+
+                // Add short break 5-15 mins after study if not overlapping
+                val breakStart = freeEnd.plusMinutes(5)
+                val breakEnd = breakStart.plusMinutes(15)
+                val breakConflictWithExisting = existingOnDay.any { ev ->
+                    breakStart.isBefore(ev.endTime.toLocalTime()) && breakEnd.isAfter(ev.startTime.toLocalTime())
+                }
+                if (!breakConflictWithExisting && breakStart.isBefore(LocalTime.of(12, 0))) {
+                    placedRanges.add(Pair(breakStart, breakEnd))
+                    dayItems.add(
+                        PlanTimelineItem(
+                            time = String.format("%02d:%02d", breakStart.hour, breakStart.minute),
+                            title = "Nghỉ giải lao",
+                            subtitle = "Thư giãn 15 phút",
+                            accentColor = Color(0xFF94A3B8),
+                            category = EventCategory.PLAY,
+                            isBreak = true
+                        )
+                    )
+                }
+            }
+        }
+
+        if (hasAfternoon && (dayIdx % 2 == 0 || !hasMorning)) {
+            val task = sortedTasks[taskPointer % sortedTasks.size]
+            taskPointer++
+            val subTopic = if (task.subtitle.isNotBlank()) "Thực hành: ${task.subtitle}" else "Làm bài tập & thực hành"
+
+            val afternoonCandidates = listOf(
+                LocalTime.of(14, 0),
+                LocalTime.of(13, 30),
+                LocalTime.of(14, 30),
+                LocalTime.of(15, 0),
+                LocalTime.of(15, 30),
+                LocalTime.of(16, 0)
+            )
+            val freeStart = findFreeSlot(afternoonCandidates, 90)
+            if (freeStart != null) {
+                placedRanges.add(Pair(freeStart, freeStart.plusMinutes(90)))
+                dayItems.add(
+                    PlanTimelineItem(
+                        time = String.format("%02d:%02d", freeStart.hour, freeStart.minute),
+                        title = task.title,
+                        subtitle = subTopic,
+                        accentColor = task.accentColor,
+                        category = EventCategory.STUDY
+                    )
+                )
+            }
+        }
+
+        if (hasEvening) {
+            val task = sortedTasks[taskPointer % sortedTasks.size]
+            taskPointer++
+            val subTopic = if (task.deadline.isNotBlank()) "Ôn tập theo hạn chót (${task.deadline})" else "Ôn tập & tổng kết"
+
+            val eveningCandidates = listOf(
+                LocalTime.of(19, 30),
+                LocalTime.of(19, 0),
+                LocalTime.of(20, 0),
+                LocalTime.of(18, 30),
+                LocalTime.of(20, 30),
+                LocalTime.of(21, 0)
+            )
+            val freeStart = findFreeSlot(eveningCandidates, 90)
+            if (freeStart != null) {
+                placedRanges.add(Pair(freeStart, freeStart.plusMinutes(90)))
+                dayItems.add(
+                    PlanTimelineItem(
+                        time = String.format("%02d:%02d", freeStart.hour, freeStart.minute),
+                        title = task.title,
+                        subtitle = subTopic,
+                        accentColor = task.accentColor,
+                        category = EventCategory.STUDY
+                    )
+                )
+            }
+        }
+
+        if (dayItems.isNotEmpty()) {
+            result[dayIdx] = dayItems.sortedBy { it.time }.toMutableList()
+        }
+    }
+
+    return result
 }

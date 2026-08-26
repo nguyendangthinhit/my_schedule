@@ -19,13 +19,17 @@ class WeatherSyncRepository(
      * Bóc tách và cập nhật dữ liệu dự báo thời tiết 7 ngày liên tiếp từ ngày hôm nay (today .. today + 6 ngày).
      * Dữ liệu cũ trước ngày hôm nay sẽ được dọn dẹp khỏi bảng.
      */
-    suspend fun sync7DaysWeather(): List<WeatherForecastEntity> = withContext(Dispatchers.IO) {
+    suspend fun sync7DaysWeather(lat: Double? = null, lon: Double? = null): List<WeatherForecastEntity> = withContext(Dispatchers.IO) {
         val today = LocalDate.now()
         val todayIso = today.format(DateTimeFormatter.ISO_DATE)
         val forecastList = mutableListOf<WeatherForecastEntity>()
 
         try {
-            val response = apiService.get7DayForecast()
+            val response = if (lat != null && lon != null) {
+                apiService.get7DayForecast(latitude = lat, longitude = lon)
+            } else {
+                apiService.get7DayForecast()
+            }
             val daily = response.daily
             val hourly = response.hourly
 

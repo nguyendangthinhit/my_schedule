@@ -34,6 +34,22 @@ class ScheduleViewModel(private val repository: EventRepository) : ViewModel() {
         _showLunarCalendar.value = show
     }
 
+    // Toggle for displaying Weather in views (Home, Day, Week, Month)
+    private val _showWeather = MutableStateFlow(true)
+    val showWeather: StateFlow<Boolean> = _showWeather.asStateFlow()
+
+    fun initWeatherSettings(context: Context) {
+        _showWeather.value = com.example.util.WeatherHelper.isWeatherEnabled(context)
+    }
+
+    fun setShowWeather(context: Context, show: Boolean) {
+        _showWeather.value = show
+        com.example.util.WeatherHelper.setWeatherEnabled(context, show)
+        if (show) {
+            refreshWeather(context)
+        }
+    }
+
     // Theme Mode state (LIGHT, DARK, SYSTEM)
     private val _themeMode = MutableStateFlow(com.example.util.ThemeMode.SYSTEM)
     val themeMode: StateFlow<com.example.util.ThemeMode> = _themeMode.asStateFlow()
@@ -161,10 +177,11 @@ class ScheduleViewModel(private val repository: EventRepository) : ViewModel() {
 
     private val weatherSyncRepo = WeatherSyncRepository(repository)
 
-    fun refreshWeather() {
+    fun refreshWeather(context: Context? = null) {
         viewModelScope.launch {
             try {
-                weatherSyncRepo.sync7DaysWeather()
+                val coords = context?.let { com.example.util.WeatherHelper.getLastKnownCoordinates(it) }
+                weatherSyncRepo.sync7DaysWeather(lat = coords?.first, lon = coords?.second)
             } catch (e: Exception) {
                 // Keep existing cached weather if offline
             }

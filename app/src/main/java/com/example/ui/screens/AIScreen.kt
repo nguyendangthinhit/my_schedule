@@ -185,14 +185,14 @@ fun AIScreen(
                     }
 
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        // AI Study Planner button
+                        // AI Planner button
                         IconButton(
                             onClick = { showStudyPlanner = true },
                             modifier = Modifier.testTag("btn_open_study_planner")
                         ) {
                             Icon(
                                 Icons.Default.School,
-                                contentDescription = "AI Study Planner",
+                                contentDescription = "AI Planner",
                                 tint = MaterialTheme.colorScheme.primary
                             )
                         }

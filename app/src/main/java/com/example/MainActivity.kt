@@ -4,11 +4,17 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.ui.navigation.AppNavigation
 import com.example.ui.theme.MyScheduleTheme
@@ -31,6 +37,7 @@ class MainActivity : ComponentActivity() {
       LaunchedEffect(Unit) {
         scheduleViewModel.initThemeSettings(this@MainActivity)
         scheduleViewModel.initNotificationSettings(this@MainActivity)
+        scheduleViewModel.initWeatherSettings(this@MainActivity)
       }
 
       val themeMode by scheduleViewModel.themeMode.collectAsState()
@@ -41,11 +48,24 @@ class MainActivity : ComponentActivity() {
       }
 
       MyScheduleTheme(darkTheme = isDark) {
-        AppNavigation(
-          viewModel = scheduleViewModel,
-          navigateTo = navigateToExtra,
-          editEventId = editEventIdExtra
-        )
+        val focusManager = LocalFocusManager.current
+        Box(
+          modifier = Modifier
+            .fillMaxSize()
+            .pointerInput(Unit) {
+              detectTapGestures(
+                onTap = {
+                  focusManager.clearFocus()
+                }
+              )
+            }
+        ) {
+          AppNavigation(
+            viewModel = scheduleViewModel,
+            navigateTo = navigateToExtra,
+            editEventId = editEventIdExtra
+          )
+        }
       }
     }
   }

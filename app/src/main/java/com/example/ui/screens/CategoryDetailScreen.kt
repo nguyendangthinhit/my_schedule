@@ -135,21 +135,19 @@ fun CategoryHorizontalSelector(
         items(categories) { cat ->
             val isSelected = cat.id == selectedCategoryId
             val primaryColor = cat.composeColor
-            val bgColor = cat.composeBgColor
 
             Surface(
                 modifier = Modifier
                     .widthIn(min = 90.dp)
-                    .clip(RoundedCornerShape(16.dp))
                     .clickable { onSelectCategory(cat) }
                     .testTag("cat_tab_${cat.id}"),
                 shape = RoundedCornerShape(16.dp),
-                color = if (isSelected) bgColor else MaterialTheme.colorScheme.surface,
+                color = MaterialTheme.colorScheme.surface,
                 border = BorderStroke(
                     width = if (isSelected) 1.5.dp else 1.dp,
                     color = if (isSelected) primaryColor else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
                 ),
-                shadowElevation = if (isSelected) 2.dp else 0.dp
+                shadowElevation = 0.dp
             ) {
                 Column(
                     modifier = Modifier

@@ -47,9 +47,31 @@ fun SettingsScreen(viewModel: ScheduleViewModel) {
     val categories by viewModel.categories.collectAsState()
     val events by viewModel.events.collectAsState()
     val showLunarCalendar by viewModel.showLunarCalendar.collectAsState()
+    val showWeather by viewModel.showWeather.collectAsState()
     val notificationsEnabled by viewModel.notificationsEnabled.collectAsState()
     val soundEnabled by viewModel.soundEnabled.collectAsState()
     val themeMode by viewModel.themeMode.collectAsState()
+
+    var showEnableGpsDialog by remember { mutableStateOf(false) }
+    var showLocationPermissionDialog by remember { mutableStateOf(false) }
+
+    val locationPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions ->
+        val isGranted = permissions[Manifest.permission.ACCESS_FINE_LOCATION] == true ||
+                permissions[Manifest.permission.ACCESS_COARSE_LOCATION] == true
+        if (isGranted) {
+            if (!com.example.util.WeatherHelper.isLocationServiceEnabled(context)) {
+                showEnableGpsDialog = true
+            } else {
+                viewModel.setShowWeather(context, true)
+                Toast.makeText(context, "Đã bật hiển thị thời tiết", Toast.LENGTH_SHORT).show()
+            }
+        } else {
+            Toast.makeText(context, "Cần cấp quyền vị trí để cập nhật thời tiết địa phương", Toast.LENGTH_LONG).show()
+            showLocationPermissionDialog = true
+        }
+    }
 
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
@@ -377,8 +399,38 @@ fun SettingsScreen(viewModel: ScheduleViewModel) {
                     SettingSwitchRow(
                         icon = Icons.Default.NightsStay,
                         title = "Hiển thị lịch Âm (Lịch Âm Dương)",
+                        subtitle = "Xem ngày âm lịch trên các chế độ xem lịch",
                         checked = showLunarCalendar,
                         onCheckedChange = { viewModel.setShowLunarCalendar(it) }
+                    )
+
+                    HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant, modifier = Modifier.padding(vertical = 10.dp))
+
+                    SettingSwitchRow(
+                        icon = Icons.Default.WbSunny,
+                        title = "Hiển thị thông tin thời tiết",
+                        subtitle = "Dự báo thời tiết & nhiệt độ theo vị trí thiết bị",
+                        checked = showWeather,
+                        onCheckedChange = { isChecked ->
+                            if (isChecked) {
+                                if (!com.example.util.WeatherHelper.hasLocationPermission(context)) {
+                                    locationPermissionLauncher.launch(
+                                        arrayOf(
+                                            Manifest.permission.ACCESS_FINE_LOCATION,
+                                            Manifest.permission.ACCESS_COARSE_LOCATION
+                                        )
+                                    )
+                                } else if (!com.example.util.WeatherHelper.isLocationServiceEnabled(context)) {
+                                    showEnableGpsDialog = true
+                                } else {
+                                    viewModel.setShowWeather(context, true)
+                                    Toast.makeText(context, "Đã bật hiển thị thời tiết", Toast.LENGTH_SHORT).show()
+                                }
+                            } else {
+                                viewModel.setShowWeather(context, false)
+                                Toast.makeText(context, "Đã tắt hiển thị thời tiết", Toast.LENGTH_SHORT).show()
+                            }
+                        }
                     )
 
                     HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant, modifier = Modifier.padding(vertical = 12.dp))
@@ -645,12 +697,133 @@ fun SettingsScreen(viewModel: ScheduleViewModel) {
             containerColor = MaterialTheme.colorScheme.surface
         )
     }
+
+    // Dialog: Yêu cầu bật dịch vụ định vị (GPS) trên thiết bị
+    if (showEnableGpsDialog) {
+        AlertDialog(
+            onDismissRequest = {
+                viewModel.setShowWeather(context, true)
+                showEnableGpsDialog = false
+            },
+            icon = {
+                Box(
+                    modifier = Modifier
+                        .size(48.dp)
+                        .clip(CircleShape)
+                        .background(Color(0xFFF59E0B).copy(alpha = 0.15f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        Icons.Default.LocationOff,
+                        contentDescription = null,
+                        tint = Color(0xFFF59E0B),
+                        modifier = Modifier.size(26.dp)
+                    )
+                }
+            },
+            title = {
+                Text("Yêu cầu bật định vị (GPS)", fontWeight = FontWeight.Bold, fontSize = 17.sp, color = MaterialTheme.colorScheme.onSurface)
+            },
+            text = {
+                Text(
+                    "Thiết bị của bạn đang tắt dịch vụ định vị (GPS). Vui lòng bật định vị trong Cài đặt của thiết bị để ứng dụng cập nhật dự báo thời tiết chính xác cho khu vực của bạn.",
+                    fontSize = 14.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showEnableGpsDialog = false
+                        viewModel.setShowWeather(context, true)
+                        com.example.util.WeatherHelper.openLocationSettings(context)
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                ) {
+                    Text("Mở Cài đặt vị trí")
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = {
+                        showEnableGpsDialog = false
+                        viewModel.setShowWeather(context, true)
+                    }
+                ) {
+                    Text("Để sau", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            },
+            containerColor = MaterialTheme.colorScheme.surface
+        )
+    }
+
+    // Dialog: Yêu cầu cấp quyền vị trí
+    if (showLocationPermissionDialog) {
+        AlertDialog(
+            onDismissRequest = {
+                showLocationPermissionDialog = false
+            },
+            icon = {
+                Box(
+                    modifier = Modifier
+                        .size(48.dp)
+                        .clip(CircleShape)
+                        .background(PrimaryPurple.copy(alpha = 0.15f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        Icons.Default.Place,
+                        contentDescription = null,
+                        tint = PrimaryPurple,
+                        modifier = Modifier.size(26.dp)
+                    )
+                }
+            },
+            title = {
+                Text("Cấp quyền truy cập vị trí", fontWeight = FontWeight.Bold, fontSize = 17.sp, color = MaterialTheme.colorScheme.onSurface)
+            },
+            text = {
+                Text(
+                    "Để hiển thị thông tin thời tiết địa phương và nhiệt độ theo giờ chính xác, ứng dụng cần quyền truy cập vị trí của thiết bị.",
+                    fontSize = 14.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showLocationPermissionDialog = false
+                        locationPermissionLauncher.launch(
+                            arrayOf(
+                                Manifest.permission.ACCESS_FINE_LOCATION,
+                                Manifest.permission.ACCESS_COARSE_LOCATION
+                            )
+                        )
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                ) {
+                    Text("Cấp quyền")
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = {
+                        showLocationPermissionDialog = false
+                    }
+                ) {
+                    Text("Để sau", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            },
+            containerColor = MaterialTheme.colorScheme.surface
+        )
+    }
 }
 
 @Composable
 fun SettingSwitchRow(
     icon: ImageVector,
     title: String,
+    subtitle: String? = null,
     checked: Boolean,
     onCheckedChange: (Boolean) -> Unit
 ) {
@@ -662,7 +835,10 @@ fun SettingSwitchRow(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.weight(1f).padding(end = 8.dp)
+        ) {
             Icon(
                 icon,
                 contentDescription = null,
@@ -670,11 +846,21 @@ fun SettingSwitchRow(
                 modifier = Modifier.size(22.dp)
             )
             Spacer(modifier = Modifier.width(12.dp))
-            Text(
-                text = title,
-                fontSize = 14.sp,
-                color = MaterialTheme.colorScheme.onSurface
-            )
+            Column {
+                Text(
+                    text = title,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                if (subtitle != null) {
+                    Text(
+                        text = subtitle,
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
         }
         Switch(
             checked = checked,

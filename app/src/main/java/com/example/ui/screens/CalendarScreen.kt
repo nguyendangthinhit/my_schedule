@@ -33,6 +33,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.zIndex
 import com.example.models.Event
 import com.example.models.EventCategory
 import com.example.network.ApiSyncResult
@@ -62,9 +63,11 @@ fun CalendarScreen(
     val context = LocalContext.current
     val allEvents by viewModel.events.collectAsState()
     val showLunarCalendar by viewModel.showLunarCalendar.collectAsState()
+    val showWeather by viewModel.showWeather.collectAsState()
     val isSyncing by viewModel.isSyncing.collectAsState()
     val syncResult by viewModel.syncResult.collectAsState()
     val weatherMap by viewModel.weatherMap.collectAsState()
+    val effectiveWeatherMap = if (showWeather) weatherMap else emptyMap()
 
     var currentViewMode by remember { mutableStateOf(CalendarViewMode.MONTH) }
     var activeDate by remember { mutableStateOf(LocalDate.now()) }
@@ -93,7 +96,7 @@ fun CalendarScreen(
                 viewMode = currentViewMode,
                 activeDate = activeDate,
                 showLunarCalendar = showLunarCalendar,
-                weatherMap = weatherMap,
+                weatherMap = effectiveWeatherMap,
                 onPrevious = {
                     activeDate = when (currentViewMode) {
                         CalendarViewMode.DAY -> activeDate.minusDays(1)
@@ -118,7 +121,7 @@ fun CalendarScreen(
                         activeDate = activeDate,
                         events = allEvents,
                         showLunarCalendar = showLunarCalendar,
-                        weatherMap = weatherMap,
+                        weatherMap = effectiveWeatherMap,
                         onSelectDate = { activeDate = it },
                         onEventClick = { selectedEventToDelete = it; showDeleteDialog = true },
                         onToggleCompletion = { viewModel.toggleEventCompletion(it) }
@@ -129,7 +132,7 @@ fun CalendarScreen(
                         activeDate = activeDate,
                         events = allEvents,
                         showLunarCalendar = showLunarCalendar,
-                        weatherMap = weatherMap,
+                        weatherMap = effectiveWeatherMap,
                         onSelectDate = { activeDate = it },
                         onEventClick = { selectedEventToDelete = it; showDeleteDialog = true },
                         onToggleCompletion = { viewModel.toggleEventCompletion(it) }
@@ -140,7 +143,7 @@ fun CalendarScreen(
                         activeDate = activeDate,
                         events = allEvents,
                         showLunarCalendar = showLunarCalendar,
-                        weatherMap = weatherMap,
+                        weatherMap = effectiveWeatherMap,
                         onSelectDate = { selectedDate ->
                             if (activeDate == selectedDate) {
                                 dialogSelectedDate = selectedDate
@@ -392,7 +395,7 @@ fun CalendarScreen(
                 date = dialogSelectedDate,
                 events = allEvents.filter { it.date == dialogSelectedDate },
                 showLunarCalendar = showLunarCalendar,
-                weather = weatherMap[dialogSelectedDate],
+                weather = effectiveWeatherMap[dialogSelectedDate],
                 onDismiss = { showDayDetailsDialog = false },
                 onAddNewEvent = {
                     viewModel.setSelectedDate(dialogSelectedDate)
@@ -628,17 +631,24 @@ fun CalendarDateNavHeader(
 /**
  * Data class representing an event positioned within the timeline grid.
  */
+/**
+ * Data class representing an event positioned within the timeline grid.
+ * Supports nested sub-events (việc nhỏ trong việc lớn) and overlapping events (chồng event lên nhau).
+ */
 data class PositionedTimelineEvent(
     val event: Event,
     val topDp: androidx.compose.ui.unit.Dp,
     val heightDp: androidx.compose.ui.unit.Dp,
-    val colIndex: Int,
-    val totalCols: Int
+    val indentLevel: Int = 0,         // 0 = Cột gốc/sự kiện lớn, 1 = Sự kiện con/chồng lớp 1, 2 = lớp 2...
+    val isNested: Boolean = false,    // True nếu sự kiện nằm hoàn toàn bên trong sự kiện lớn trước đó
+    val parentEvent: Event? = null,
+    val zIndex: Float = 0f
 )
 
 /**
  * Calculates exact vertical offset (topDp), height proportional to event duration (heightDp),
- * and assigns column indices to elegantly lay out overlapping events side-by-side.
+ * and handles nested sub-events (việc nhỏ trong việc lớn) as well as overlapping events (chồng nhau),
+ * staggering them neatly to the right without ever exceeding the boundaries of the day column.
  */
 fun calculatePositionedTimelineEvents(
     events: List<Event>,
@@ -649,101 +659,106 @@ fun calculatePositionedTimelineEvents(
 ): List<PositionedTimelineEvent> {
     if (events.isEmpty()) return emptyList()
 
-    // Sort by start minute ascending, then by duration descending
+    // Sắp xếp: Thời gian bắt đầu tăng dần. Nếu cùng giờ bắt đầu thì sự kiện có thời lượng dài hơn đứng trước (sự kiện lớn làm cha).
     val sorted = events.sortedWith(
         compareBy<Event> { it.startTime.hour * 60 + it.startTime.minute }
             .thenByDescending {
-                (it.endTime.hour * 60 + it.endTime.minute) - (it.startTime.hour * 60 + it.startTime.minute)
+                val s = it.startTime.hour * 60 + it.startTime.minute
+                val rawE = it.endTime.hour * 60 + it.endTime.minute
+                val e = if (rawE <= s) s + 30 else rawE
+                e - s
             }
+            .thenBy { it.id }
     )
 
-    // Cluster overlapping events together
-    val clusters = mutableListOf<MutableList<Event>>()
-    var currentCluster = mutableListOf<Event>()
-    var currentClusterEndMin = -1
+    data class EventPlacement(
+        val event: Event,
+        val sMin: Int,
+        val eMin: Int,
+        val indentLevel: Int,
+        val isNested: Boolean,
+        val parentEvent: Event?
+    )
+
+    val placements = mutableListOf<EventPlacement>()
 
     for (event in sorted) {
         val sMin = event.startTime.hour * 60 + event.startTime.minute
         val rawEMin = event.endTime.hour * 60 + event.endTime.minute
         val eMin = if (rawEMin <= sMin) sMin + 30 else rawEMin
 
-        if (currentCluster.isEmpty()) {
-            currentCluster.add(event)
-            currentClusterEndMin = eMin
-        } else {
-            if (sMin < currentClusterEndMin) {
-                // Overlaps with current cluster
-                currentCluster.add(event)
-                currentClusterEndMin = maxOf(currentClusterEndMin, eMin)
-            } else {
-                // End of current cluster, start new
-                clusters.add(currentCluster)
-                currentCluster = mutableListOf(event)
-                currentClusterEndMin = eMin
-            }
-        }
-    }
-    if (currentCluster.isNotEmpty()) {
-        clusters.add(currentCluster)
-    }
-
-    val result = mutableListOf<PositionedTimelineEvent>()
-
-    for (cluster in clusters) {
-        // Assign columns to avoid collisions within the cluster
-        val colEndTimes = mutableListOf<Int>()
-        val eventColMap = mutableMapOf<Event, Int>()
-
-        for (event in cluster) {
-            val sMin = event.startTime.hour * 60 + event.startTime.minute
-            val rawEMin = event.endTime.hour * 60 + event.endTime.minute
-            val eMin = if (rawEMin <= sMin) sMin + 30 else rawEMin
-
-            var assignedCol = -1
-            for (i in colEndTimes.indices) {
-                if (colEndTimes[i] <= sMin) {
-                    assignedCol = i
-                    colEndTimes[i] = eMin
-                    break
-                }
-            }
-            if (assignedCol == -1) {
-                assignedCol = colEndTimes.size
-                colEndTimes.add(eMin)
-            }
-            eventColMap[event] = assignedCol
+        // Tìm các sự kiện đã xếp trước đó đang diễn ra tại thời điểm sMin..eMin
+        val activeOverlaps = placements.filter { p ->
+            sMin < p.eMin && eMin > p.sMin
         }
 
-        val totalCols = maxOf(1, colEndTimes.size)
-
-        for (event in cluster) {
-            val sMin = event.startTime.hour * 60 + event.startTime.minute
-            val rawEMin = event.endTime.hour * 60 + event.endTime.minute
-            val eMin = if (rawEMin <= sMin) sMin + 30 else rawEMin
-
-            val startOffsetMins = (sMin - startHour * 60).coerceAtLeast(0)
-            val endOffsetMins = (eMin - startHour * 60).coerceIn(startOffsetMins + 15, (endHour - startHour) * 60)
-            val durationMins = maxOf(15, endOffsetMins - startOffsetMins)
-
-            val top = (startOffsetMins.toFloat() / 60f) * hourHeightDp.value
-            val calcHeight = (durationMins.toFloat() / 60f) * hourHeightDp.value
-            val height = maxOf(minHeightDp.value, calcHeight)
-
-            val col = eventColMap[event] ?: 0
-
-            result.add(
-                PositionedTimelineEvent(
+        if (activeOverlaps.isEmpty()) {
+            // Sự kiện độc lập / gốc (không bị chồng hay lồng vào sự kiện nào)
+            placements.add(
+                EventPlacement(
                     event = event,
-                    topDp = top.dp,
-                    heightDp = height.dp,
-                    colIndex = col,
-                    totalCols = totalCols
+                    sMin = sMin,
+                    eMin = eMin,
+                    indentLevel = 0,
+                    isNested = false,
+                    parentEvent = null
                 )
             )
+        } else {
+            // Kiểm tra xem có sự kiện cha bao trùm hoàn toàn sự kiện này không (việc nhỏ trong việc lớn)
+            // (parent.sMin <= sMin và eMin <= parent.eMin)
+            val containingParent = activeOverlaps
+                .filter { it.sMin <= sMin && eMin <= it.eMin }
+                .maxByOrNull { it.indentLevel }
+
+            if (containingParent != null) {
+                // Việc nhỏ nằm trong việc lớn: thụt vào bên phải theo cấp bậc cha + 1
+                placements.add(
+                    EventPlacement(
+                        event = event,
+                        sMin = sMin,
+                        eMin = eMin,
+                        indentLevel = containingParent.indentLevel + 1,
+                        isNested = true,
+                        parentEvent = containingParent.event
+                    )
+                )
+            } else {
+                // Sự kiện chồng lên sự kiện ở trước: thụt vào bên phải một bậc
+                val maxIndent = activeOverlaps.maxOf { it.indentLevel }
+                placements.add(
+                    EventPlacement(
+                        event = event,
+                        sMin = sMin,
+                        eMin = eMin,
+                        indentLevel = maxIndent + 1,
+                        isNested = false,
+                        parentEvent = null
+                    )
+                )
+            }
         }
     }
 
-    return result
+    return placements.map { p ->
+        val startOffsetMins = (p.sMin - startHour * 60).coerceAtLeast(0)
+        val endOffsetMins = (p.eMin - startHour * 60).coerceIn(startOffsetMins + 15, (endHour - startHour) * 60)
+        val durationMins = maxOf(15, endOffsetMins - startOffsetMins)
+
+        val top = (startOffsetMins.toFloat() / 60f) * hourHeightDp.value
+        val calcHeight = (durationMins.toFloat() / 60f) * hourHeightDp.value
+        val height = maxOf(minHeightDp.value, calcHeight)
+
+        PositionedTimelineEvent(
+            event = p.event,
+            topDp = top.dp,
+            heightDp = height.dp,
+            indentLevel = p.indentLevel,
+            isNested = p.isNested,
+            parentEvent = p.parentEvent,
+            zIndex = (p.indentLevel + 1) * 10f + placements.indexOf(p).toFloat()
+        )
+    }
 }
 
 /**
@@ -785,7 +800,7 @@ fun DayScheduleContent(
         modifier = Modifier
             .fillMaxSize()
             .padding(horizontal = 14.dp),
-        contentPadding = PaddingValues(top = 8.dp, bottom = 88.dp)
+        contentPadding = PaddingValues(top = 8.dp, bottom = 12.dp)
     ) {
         // Header Thông Tin Ngày & Thời Tiết
         item {
@@ -1096,20 +1111,25 @@ fun DayScheduleContent(
                             }
                         }
 
-                        // Hiển thị các sự kiện theo đúng tọa độ thời gian và diện tích tỉ lệ
+                        // Hiển thị các sự kiện theo đúng tọa độ thời gian, diện tích tỉ lệ và cấu trúc lồng/chồng nhau
                         positionedEvents.forEach { pos ->
-                            val colWidth = availableWidth / pos.totalCols
-                            val xOffset = colWidth * pos.colIndex
+                            val indent = if (pos.indentLevel > 0) {
+                                (pos.indentLevel * 24).dp.coerceAtMost(availableWidth * 0.42f)
+                            } else {
+                                0.dp
+                            }
+                            val cardWidth = availableWidth - indent
 
                             DayTimelineEventCard(
                                 positionedEvent = pos,
-                                width = colWidth,
+                                width = cardWidth,
                                 onClick = { onEventClick(pos.event) },
                                 onToggleCompletion = { onToggleCompletion(pos.event) },
                                 modifier = Modifier
-                                    .offset(x = xOffset, y = pos.topDp)
-                                    .width(colWidth)
+                                    .offset(x = indent, y = pos.topDp)
+                                    .width(cardWidth)
                                     .height(pos.heightDp)
+                                    .zIndex(pos.zIndex)
                                     .padding(horizontal = 2.dp, vertical = 1.dp)
                             )
                         }
@@ -1195,7 +1215,11 @@ fun DayTimelineEventCard(
             .clickable { onClick() },
         shape = RoundedCornerShape(8.dp),
         color = event.category.getThemedBgColor(),
-        border = androidx.compose.foundation.BorderStroke(1.dp, event.category.getThemedBorderColor())
+        shadowElevation = if (positionedEvent.indentLevel > 0) (positionedEvent.indentLevel * 3 + 2).dp else 1.dp,
+        border = androidx.compose.foundation.BorderStroke(
+            if (positionedEvent.isNested || positionedEvent.indentLevel > 0) 1.5.dp else 1.dp,
+            event.category.getThemedBorderColor()
+        )
     ) {
         Row(
             modifier = Modifier
@@ -1219,21 +1243,51 @@ fun DayTimelineEventCard(
                     .fillMaxHeight(),
                 verticalArrangement = if (isShort) Arrangement.Center else Arrangement.SpaceBetween
             ) {
-                // Tiêu đề và huy hiệu danh mục
+                // Tiêu đề và huy hiệu danh mục + nhãn Việc nhỏ nếu lồng nhau
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Text(
-                        text = event.title,
-                        fontSize = if (isShort) 12.sp else 13.5.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        maxLines = if (isTall) 2 else 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.weight(1f)
-                    )
+                    Row(
+                        modifier = Modifier.weight(1f),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        if (positionedEvent.isNested) {
+                            Surface(
+                                shape = RoundedCornerShape(3.dp),
+                                color = event.category.color.copy(alpha = 0.18f),
+                                modifier = Modifier.padding(end = 4.dp)
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
+                                ) {
+                                    Icon(
+                                        Icons.Default.SubdirectoryArrowRight,
+                                        contentDescription = "Việc nhỏ",
+                                        tint = event.category.color,
+                                        modifier = Modifier.size(10.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(2.dp))
+                                    Text(
+                                        text = "Việc nhỏ",
+                                        fontSize = 8.5.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = event.category.color
+                                    )
+                                }
+                            }
+                        }
+                        Text(
+                            text = event.title,
+                            fontSize = if (isShort) 12.sp else 13.5.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            maxLines = if (isTall) 2 else 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
 
                     if (!isShort && width > 130.dp) {
                         Spacer(modifier = Modifier.width(4.dp))
@@ -1615,46 +1669,64 @@ fun WeekCalendarGridCard(
                                     }
                                 }
 
-                                // Các sự kiện chiếm diện tích tương ứng với tỉ lệ thời lượng
+                                // Các sự kiện chiếm diện tích tương ứng với tỉ lệ thời lượng, hỗ trợ việc nhỏ và chồng nhau
                                 positionedEvents.forEach { pos ->
-                                    val eventWidth = colWidth / pos.totalCols
-                                    val xOffset = eventWidth * pos.colIndex
+                                    val indentFraction = (pos.indentLevel * 0.18f).coerceAtMost(0.42f)
+                                    val xOffset = colWidth * indentFraction
+                                    val eventWidth = colWidth - xOffset
 
                                     Surface(
                                         modifier = Modifier
                                             .offset(x = xOffset, y = pos.topDp)
                                             .width(eventWidth)
                                             .height(pos.heightDp)
+                                            .zIndex(pos.zIndex)
                                             .padding(1.dp)
                                             .clip(RoundedCornerShape(4.dp))
                                             .clickable { onEventClick(pos.event) },
                                         color = pos.event.category.getThemedBgColor(),
                                         shape = RoundedCornerShape(4.dp),
-                                        border = androidx.compose.foundation.BorderStroke(1.dp, pos.event.category.getThemedBorderColor())
+                                        shadowElevation = if (pos.indentLevel > 0) (pos.indentLevel * 2 + 1).dp else 0.5.dp,
+                                        border = androidx.compose.foundation.BorderStroke(
+                                            if (pos.isNested || pos.indentLevel > 0) 1.5.dp else 1.dp,
+                                            pos.event.category.getThemedBorderColor()
+                                        )
                                     ) {
                                         Column(
                                             modifier = Modifier
                                                 .fillMaxSize()
-                                                .padding(horizontal = 2.dp, vertical = 1.5.dp)
+                                                .padding(horizontal = 2.dp, vertical = 1.dp)
                                         ) {
-                                            Text(
-                                                text = pos.event.title,
-                                                fontSize = 8.5.sp,
-                                                fontWeight = FontWeight.Bold,
-                                                color = pos.event.category.color,
-                                                maxLines = if (pos.heightDp >= 60.dp) 3 else if (pos.heightDp >= 32.dp) 2 else 1,
-                                                overflow = TextOverflow.Ellipsis,
-                                                lineHeight = 9.5.sp
-                                            )
-                                            if (pos.heightDp >= 34.dp) {
+                                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                                if (pos.isNested) {
+                                                    Text(
+                                                        text = "↳",
+                                                        fontSize = 8.sp,
+                                                        fontWeight = FontWeight.Bold,
+                                                        color = pos.event.category.color
+                                                    )
+                                                    Spacer(modifier = Modifier.width(1.dp))
+                                                }
+                                                Text(
+                                                    text = pos.event.title,
+                                                    fontSize = 8.sp,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = pos.event.category.color,
+                                                    maxLines = if (pos.heightDp >= 60.dp) 3 else if (pos.heightDp >= 32.dp) 2 else 1,
+                                                    overflow = TextOverflow.Ellipsis,
+                                                    lineHeight = 9.sp,
+                                                    modifier = Modifier.weight(1f)
+                                                )
+                                            }
+                                            if (pos.heightDp >= 32.dp) {
                                                 Text(
                                                     text = DateUtils.formatTimeRange(pos.event.startTime, pos.event.endTime),
-                                                    fontSize = 7.sp,
+                                                    fontSize = 6.5.sp,
                                                     fontWeight = FontWeight.Medium,
                                                     color = pos.event.category.color.copy(alpha = 0.85f),
                                                     maxLines = 1,
                                                     overflow = TextOverflow.Ellipsis,
-                                                    lineHeight = 8.sp
+                                                    lineHeight = 7.5.sp
                                                 )
                                             }
                                         }
@@ -1722,7 +1794,7 @@ fun WeekScheduleView(
         modifier = Modifier
             .fillMaxSize()
             .padding(horizontal = 10.dp),
-        contentPadding = PaddingValues(top = 4.dp, bottom = 88.dp)
+        contentPadding = PaddingValues(top = 4.dp, bottom = 12.dp)
     ) {
         // Week Calendar ViewPager (HorizontalPager)
         item {
@@ -2263,7 +2335,7 @@ fun MonthScheduleView(
         modifier = Modifier
             .fillMaxSize()
             .padding(horizontal = 10.dp),
-        contentPadding = PaddingValues(top = 4.dp, bottom = 88.dp)
+        contentPadding = PaddingValues(top = 4.dp, bottom = 12.dp)
     ) {
         // Month Calendar ViewPager (HorizontalPager)
         item {

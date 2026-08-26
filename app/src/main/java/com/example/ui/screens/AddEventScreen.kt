@@ -128,14 +128,27 @@ fun AddEventScreen(
                     startMinute = minute
                     val currentStart = LocalTime.of(startHour, startMinute)
                     val currentEnd = LocalTime.of(endHour, endMinute)
-                    if (currentEnd.isBefore(currentStart) || currentEnd == currentStart) {
+                    if (!currentEnd.isAfter(currentStart)) {
                         val newEnd = currentStart.plusHours(1)
                         endHour = newEnd.hour
                         endMinute = newEnd.minute
                     }
                 } else {
-                    endHour = hourOfDay
-                    endMinute = minute
+                    val chosenEnd = LocalTime.of(hourOfDay, minute)
+                    val currentStart = LocalTime.of(startHour, startMinute)
+                    if (!chosenEnd.isAfter(currentStart)) {
+                        val newEnd = currentStart.plusMinutes(60)
+                        endHour = newEnd.hour
+                        endMinute = newEnd.minute
+                        Toast.makeText(
+                            context,
+                            "Giờ kết thúc không được sớm hơn hoặc trùng giờ bắt đầu! Đã tự động đặt thành ${String.format("%02d:%02d", endHour, endMinute)}",
+                            Toast.LENGTH_LONG
+                        ).show()
+                    } else {
+                        endHour = hourOfDay
+                        endMinute = minute
+                    }
                 }
             },
             initialHour,
@@ -143,6 +156,54 @@ fun AddEventScreen(
             true
         )
         timePickerDialog.show()
+    }
+
+    fun onStartHourChange(newHour: Int) {
+        startHour = newHour
+        val currentStart = LocalTime.of(startHour, startMinute)
+        val currentEnd = LocalTime.of(endHour, endMinute)
+        if (!currentEnd.isAfter(currentStart)) {
+            val newEnd = currentStart.plusHours(1)
+            endHour = newEnd.hour
+            endMinute = newEnd.minute
+        }
+    }
+
+    fun onStartMinuteChange(newMinute: Int) {
+        startMinute = newMinute
+        val currentStart = LocalTime.of(startHour, startMinute)
+        val currentEnd = LocalTime.of(endHour, endMinute)
+        if (!currentEnd.isAfter(currentStart)) {
+            val newEnd = currentStart.plusHours(1)
+            endHour = newEnd.hour
+            endMinute = newEnd.minute
+        }
+    }
+
+    fun onEndHourChange(newHour: Int) {
+        val currentStart = LocalTime.of(startHour, startMinute)
+        val chosenEnd = LocalTime.of(newHour, endMinute)
+        if (!chosenEnd.isAfter(currentStart)) {
+            val newEnd = currentStart.plusMinutes(30)
+            endHour = newEnd.hour
+            endMinute = newEnd.minute
+            Toast.makeText(context, "Giờ kết thúc phải sau giờ bắt đầu", Toast.LENGTH_SHORT).show()
+        } else {
+            endHour = newHour
+        }
+    }
+
+    fun onEndMinuteChange(newMinute: Int) {
+        val currentStart = LocalTime.of(startHour, startMinute)
+        val chosenEnd = LocalTime.of(endHour, newMinute)
+        if (!chosenEnd.isAfter(currentStart)) {
+            val newEnd = currentStart.plusMinutes(30)
+            endHour = newEnd.hour
+            endMinute = newEnd.minute
+            Toast.makeText(context, "Giờ kết thúc phải sau giờ bắt đầu", Toast.LENGTH_SHORT).show()
+        } else {
+            endMinute = newMinute
+        }
     }
 
     fun saveEvent() {
@@ -155,7 +216,7 @@ fun AddEventScreen(
         if (eventId != null && existingEvent != null) {
             val startTime = eventDate.atTime(startHour, startMinute)
             var endTime = eventDate.atTime(endHour, endMinute)
-            if (endTime.isBefore(startTime) || endTime == startTime) {
+            if (!endTime.isAfter(startTime)) {
                 endTime = startTime.plusHours(1)
             }
             val updatedEvent = existingEvent.copy(
@@ -176,7 +237,7 @@ fun AddEventScreen(
                 val targetDate = currentWeekMonday.plusDays((day.value - 1).toLong())
                 val itemStartTime = targetDate.atTime(startHour, startMinute)
                 var itemEndTime = targetDate.atTime(endHour, endMinute)
-                if (itemEndTime.isBefore(itemStartTime) || itemEndTime == itemStartTime) {
+                if (!itemEndTime.isAfter(itemStartTime)) {
                     itemEndTime = itemStartTime.plusHours(1)
                 }
                 val newEvent = Event(
@@ -203,9 +264,8 @@ fun AddEventScreen(
 
     val durationText = remember(startHour, startMinute, endHour, endMinute) {
         val startMins = startHour * 60 + startMinute
-        var endMins = endHour * 60 + endMinute
-        if (endMins <= startMins) endMins += 24 * 60
-        val diffMins = endMins - startMins
+        val endMins = endHour * 60 + endMinute
+        val diffMins = if (endMins > startMins) endMins - startMins else 60
         val h = diffMins / 60
         val m = diffMins % 60
         if (h > 0 && m > 0) "${h}h ${m}p" else if (h > 0) "${h} giờ" else "${m} phút"
@@ -517,8 +577,8 @@ fun AddEventScreen(
                     hour = startHour,
                     minute = startMinute,
                     onOpenDialog = { showTimePicker(true) },
-                    onHourChange = { startHour = it },
-                    onMinuteChange = { startMinute = it },
+                    onHourChange = { onStartHourChange(it) },
+                    onMinuteChange = { onStartMinuteChange(it) },
                     modifier = Modifier.weight(1f)
                 )
 
@@ -527,8 +587,8 @@ fun AddEventScreen(
                     hour = endHour,
                     minute = endMinute,
                     onOpenDialog = { showTimePicker(false) },
-                    onHourChange = { endHour = it },
-                    onMinuteChange = { endMinute = it },
+                    onHourChange = { onEndHourChange(it) },
+                    onMinuteChange = { onEndMinuteChange(it) },
                     modifier = Modifier.weight(1f)
                 )
             }

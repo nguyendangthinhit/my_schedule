@@ -4,6 +4,8 @@
 
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.VIBRATE" />
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
@@ -35,20 +37,7 @@
             android:name=".util.NotificationReceiver"
             android:exported="false" />
 
-        <!-- 1. Large Widget (4x2) -->
-        <receiver
-            android:name=".widget.LargeScheduleWidgetProvider"
-            android:exported="false"
-            android:label="@string/widget_large_name">
-            <intent-filter>
-                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
-            </intent-filter>
-            <meta-data
-                android:name="android.appwidget.provider"
-                android:resource="@xml/widget_large_info" />
-        </receiver>
-
-        <!-- 2. Medium Widget (4x1.5) -->
+        <!-- 1. Việc hôm nay - Tiêu chuẩn -->
         <receiver
             android:name=".widget.MediumScheduleWidgetProvider"
             android:exported="false"
@@ -61,7 +50,7 @@
                 android:resource="@xml/widget_medium_info" />
         </receiver>
 
-        <!-- 3. Small Widget (2x2) -->
+        <!-- 2. Việc hôm nay - Vuông -->
         <receiver
             android:name=".widget.SmallScheduleWidgetProvider"
             android:exported="false"
@@ -74,7 +63,7 @@
                 android:resource="@xml/widget_small_info" />
         </receiver>
 
-        <!-- 4. Compact Widget (4x1) -->
+        <!-- 3. Việc hôm nay - Ngang -->
         <receiver
             android:name=".widget.CompactScheduleWidgetProvider"
             android:exported="false"
@@ -87,20 +76,7 @@
                 android:resource="@xml/widget_compact_info" />
         </receiver>
 
-        <!-- 5. Mini Widget (2x1) -->
-        <receiver
-            android:name=".widget.MiniScheduleWidgetProvider"
-            android:exported="false"
-            android:label="@string/widget_mini_name">
-            <intent-filter>
-                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
-            </intent-filter>
-            <meta-data
-                android:name="android.appwidget.provider"
-                android:resource="@xml/widget_mini_info" />
-        </receiver>
-
-        <!-- 6. Micro Widget (2x0.5) -->
+        <!-- 4. Việc hôm nay - Gọn -->
         <receiver
             android:name=".widget.MicroScheduleWidgetProvider"
             android:exported="false"

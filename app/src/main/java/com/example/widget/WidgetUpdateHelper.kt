@@ -9,42 +9,28 @@ object WidgetUpdateHelper {
     fun updateAllWidgets(context: Context) {
         val appWidgetManager = AppWidgetManager.getInstance(context)
 
-        // Large Widget
-        val largeComponent = ComponentName(context, LargeScheduleWidgetProvider::class.java)
-        val largeIds = appWidgetManager.getAppWidgetIds(largeComponent)
-        if (largeIds.isNotEmpty()) {
-            LargeScheduleWidgetProvider.updateAllWidgets(context, appWidgetManager, largeIds)
-        }
-
-        // Medium Widget
+        // Medium Widget (Việc hôm nay - Tiêu chuẩn)
         val mediumComponent = ComponentName(context, MediumScheduleWidgetProvider::class.java)
         val mediumIds = appWidgetManager.getAppWidgetIds(mediumComponent)
         if (mediumIds.isNotEmpty()) {
             MediumScheduleWidgetProvider.updateAllWidgets(context, appWidgetManager, mediumIds)
         }
 
-        // Small Widget
+        // Small Widget (Việc hôm nay - Vuông)
         val smallComponent = ComponentName(context, SmallScheduleWidgetProvider::class.java)
         val smallIds = appWidgetManager.getAppWidgetIds(smallComponent)
         if (smallIds.isNotEmpty()) {
             SmallScheduleWidgetProvider.updateAllWidgets(context, appWidgetManager, smallIds)
         }
 
-        // Compact Widget
+        // Compact Widget (Việc hôm nay - Ngang)
         val compactComponent = ComponentName(context, CompactScheduleWidgetProvider::class.java)
         val compactIds = appWidgetManager.getAppWidgetIds(compactComponent)
         if (compactIds.isNotEmpty()) {
             CompactScheduleWidgetProvider.updateAllWidgets(context, appWidgetManager, compactIds)
         }
 
-        // Mini Widget
-        val miniComponent = ComponentName(context, MiniScheduleWidgetProvider::class.java)
-        val miniIds = appWidgetManager.getAppWidgetIds(miniComponent)
-        if (miniIds.isNotEmpty()) {
-            MiniScheduleWidgetProvider.updateAllWidgets(context, appWidgetManager, miniIds)
-        }
-
-        // Micro Widget
+        // Micro Widget (Việc hôm nay - Gọn)
         val microComponent = ComponentName(context, MicroScheduleWidgetProvider::class.java)
         val microIds = appWidgetManager.getAppWidgetIds(microComponent)
         if (microIds.isNotEmpty()) {

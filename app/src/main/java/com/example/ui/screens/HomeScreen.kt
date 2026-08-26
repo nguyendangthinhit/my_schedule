@@ -46,7 +46,9 @@ fun HomeScreen(
     val selectedDate by viewModel.selectedDate.collectAsState()
     val categories by viewModel.categories.collectAsState()
     val showLunarCalendar by viewModel.showLunarCalendar.collectAsState()
+    val showWeather by viewModel.showWeather.collectAsState()
     val weatherMap by viewModel.weatherMap.collectAsState()
+    val effectiveWeatherMap = if (showWeather) weatherMap else emptyMap()
     var selectedCategoryFilter by remember { mutableStateOf<EventCategory?>(null) }
 
     val today = LocalDate.now()
@@ -76,14 +78,14 @@ fun HomeScreen(
                 .fillMaxSize()
                 .background(MaterialTheme.colorScheme.background)
                 .padding(horizontal = 16.dp),
-            contentPadding = PaddingValues(top = 16.dp, bottom = 80.dp)
+            contentPadding = PaddingValues(top = 16.dp, bottom = 24.dp)
         ) {
             // Top full date, Lunar date and greeting
             item {
                 HeaderDateSection(
                     selectedDate = selectedDate,
                     showLunarCalendar = showLunarCalendar,
-                    weatherMap = weatherMap,
+                    weatherMap = effectiveWeatherMap,
                     onGoToToday = {
                         viewModel.setSelectedDate(today)
                     }
@@ -97,7 +99,7 @@ fun HomeScreen(
                     selectedDate = selectedDate,
                     events = allEvents,
                     showLunarCalendar = showLunarCalendar,
-                    weatherMap = weatherMap,
+                    weatherMap = effectiveWeatherMap,
                     listState = weekListState,
                     onSelectDate = { viewModel.setSelectedDate(it) }
                 )

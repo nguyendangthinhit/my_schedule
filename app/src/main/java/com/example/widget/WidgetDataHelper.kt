@@ -27,7 +27,8 @@ data class WidgetDisplayData(
     val totalCount: Int,
     val footerText: String,
     val footerCountOnly: String,
-    val tasks: List<WidgetTaskItem>
+    val tasks: List<WidgetTaskItem>,
+    val standardTasks: List<WidgetTaskItem>
 )
 
 data class WidgetEventItem(
@@ -46,7 +47,9 @@ data class WidgetTaskItem(
     val timeRange: String,
     val categoryTitle: String,
     val dotRes: Int,
-    val isCompleted: Boolean
+    val isCompleted: Boolean,
+    val isPast: Boolean = false,
+    val isNext: Boolean = false
 )
 
 object WidgetDataHelper {
@@ -184,7 +187,7 @@ object WidgetDataHelper {
             )
         }
 
-        // Task Items: sorted by startTime
+        // General Task Items: sorted by completed status then startTime
         val sortedTasks = todayEvents
             .sortedWith(compareBy({ it.isCompleted }, { it.startTime }))
             .map { event ->
@@ -198,6 +201,69 @@ object WidgetDataHelper {
                     isCompleted = event.isCompleted
                 )
             }
+
+        // Standard Widget Task Items:
+        // "hiển thị 1 công việc trước đó gần với thời gian hiện tại nhất và các công việc còn lại trong ngày"
+        val pastEvents = todayEvents.filter { it.endTime.isBefore(now) }
+        val remainingEvents = todayEvents.filter { !it.endTime.isBefore(now) }
+
+        val closestPastEvent = pastEvents.maxByOrNull { it.endTime }
+
+        val standardList = mutableListOf<WidgetTaskItem>()
+
+        // 1 công việc trước đó gần nhất
+        if (closestPastEvent != null) {
+            val categoryName = if (closestPastEvent.category.title.isNotBlank()) closestPastEvent.category.title else "Học tập"
+            standardList.add(
+                WidgetTaskItem(
+                    id = closestPastEvent.id,
+                    title = closestPastEvent.title,
+                    timeRange = "${closestPastEvent.startTime.format(timeFormatter)} - ${closestPastEvent.endTime.format(timeFormatter)}",
+                    categoryTitle = categoryName,
+                    dotRes = getCategoryDot(categoryName, closestPastEvent.title),
+                    isCompleted = closestPastEvent.isCompleted,
+                    isPast = true,
+                    isNext = false
+                )
+            )
+        }
+
+        // Các công việc còn lại trong ngày (sắp xếp theo startTime)
+        val sortedRemaining = remainingEvents.sortedBy { it.startTime }
+        val nextCandidateId = sortedRemaining.firstOrNull { !it.isCompleted }?.id ?: sortedRemaining.firstOrNull()?.id
+        for (event in sortedRemaining) {
+            val categoryName = if (event.category.title.isNotBlank()) event.category.title else "Học tập"
+            standardList.add(
+                WidgetTaskItem(
+                    id = event.id,
+                    title = event.title,
+                    timeRange = "${event.startTime.format(timeFormatter)} - ${event.endTime.format(timeFormatter)}",
+                    categoryTitle = categoryName,
+                    dotRes = getCategoryDot(categoryName, event.title),
+                    isCompleted = event.isCompleted,
+                    isPast = false,
+                    isNext = event.id == nextCandidateId
+                )
+            )
+        }
+
+        val finalStandardTasks = if (standardList.isNotEmpty()) {
+            standardList
+        } else {
+            todayEvents.sortedBy { it.startTime }.map { event ->
+                val categoryName = if (event.category.title.isNotBlank()) event.category.title else "Học tập"
+                WidgetTaskItem(
+                    id = event.id,
+                    title = event.title,
+                    timeRange = "${event.startTime.format(timeFormatter)} - ${event.endTime.format(timeFormatter)}",
+                    categoryTitle = categoryName,
+                    dotRes = getCategoryDot(categoryName, event.title),
+                    isCompleted = event.isCompleted,
+                    isPast = event.endTime.isBefore(now),
+                    isNext = false
+                )
+            }
+        }
 
         val completedCount = todayEvents.count { it.isCompleted }
         val totalCount = todayEvents.size
@@ -229,7 +295,8 @@ object WidgetDataHelper {
             totalCount = totalCount,
             footerText = "$completedCount/$totalCount đã hoàn thành",
             footerCountOnly = "$completedCount/$totalCount",
-            tasks = sortedTasks
+            tasks = sortedTasks,
+            standardTasks = finalStandardTasks
         )
     }
 }

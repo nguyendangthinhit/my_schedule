@@ -30,7 +30,6 @@ import com.example.models.dashboard.DashboardCategory
 import com.example.models.dashboard.DashboardOverviewData
 import com.example.models.dashboard.PeriodType
 import com.example.ui.components.dashboard.CategoryHorizontalProgressBar
-import com.example.ui.components.dashboard.PlannedVsCompletedDonutChart
 import com.example.ui.components.dashboard.StreakDaysRow
 import com.example.ui.components.dashboard.WeeklyProgressDonutChart
 import com.example.viewmodel.DashboardOverviewUiState
@@ -543,67 +542,7 @@ fun DashboardOverviewContent(
             }
         }
 
-        // Card 3: Kế hoạch vs Hoàn thành (Planned vs Completed)
-        item {
-            Surface(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(20.dp),
-                color = MaterialTheme.colorScheme.surface,
-                shadowElevation = 1.dp,
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
-            ) {
-                Column(modifier = Modifier.padding(20.dp)) {
-                    Text(
-                        text = "Kế hoạch vs Hoàn thành",
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        PlannedVsCompletedDonutChart(
-                            completed = data.completedTasks,
-                            inProgress = data.inProgressTasks,
-                            incomplete = data.incompleteTasks
-                        )
-
-                        val total = data.totalTasks.coerceAtLeast(1)
-                        val compPct = ((data.completedTasks.toFloat() / total) * 100).toInt()
-                        val inProgPct = ((data.inProgressTasks.toFloat() / total) * 100).toInt()
-                        val incompPct = ((data.incompleteTasks.toFloat() / total) * 100).toInt()
-
-                        Column(
-                            verticalArrangement = Arrangement.spacedBy(10.dp),
-                            modifier = Modifier.padding(start = 16.dp)
-                        ) {
-                            ProgressLegendItem(
-                                color = Color(0xFF10B981),
-                                title = "Đã hoàn thành",
-                                count = "${data.completedTasks} ($compPct%)"
-                            )
-                            ProgressLegendItem(
-                                color = Color(0xFFF59E0B),
-                                title = "Đang thực hiện",
-                                count = "${data.inProgressTasks} ($inProgPct%)"
-                            )
-                            ProgressLegendItem(
-                                color = Color(0xFFEF4444),
-                                title = "Chưa hoàn thành",
-                                count = "${data.incompleteTasks} ($incompPct%)"
-                            )
-                        }
-                    }
-                }
-            }
-        }
-
-        // Card 4: Chuỗi ngày duy trì (Streak)
+        // Card 3: Chuỗi ngày duy trì (Streak)
         item {
             Surface(
                 modifier = Modifier.fillMaxWidth(),
