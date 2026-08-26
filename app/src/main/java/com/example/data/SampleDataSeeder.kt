@@ -246,7 +246,21 @@ object SampleDataSeeder {
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         val alreadySeeded = prefs.getBoolean(KEY_SEEDED_AUG_2026_V1, false)
 
-        if (!alreadySeeded) {
+        val existingEvents = dao.getAllEventsList()
+
+        // Deduplicate any existing duplicate events (e.g. from previous double initialization)
+        if (existingEvents.isNotEmpty()) {
+            val groups = existingEvents.groupBy { "${it.title}|${it.startDate}|${it.startTime}|${it.endTime}|${it.boardId}" }
+            for ((_, group) in groups) {
+                if (group.size > 1) {
+                    for (duplicate in group.drop(1)) {
+                        dao.deleteEventById(duplicate.id)
+                    }
+                }
+            }
+        }
+
+        if (!alreadySeeded && existingEvents.isEmpty()) {
             val sampleEvents = getSampleEvents()
             for (event in sampleEvents) {
                 val id = dao.insertEvent(event).toInt()
@@ -261,19 +275,8 @@ object SampleDataSeeder {
                     )
                 }
             }
-            prefs.edit().putBoolean(KEY_SEEDED_AUG_2026_V1, true).apply()
         }
-    }
 
-    fun seedDatabaseRaw(db: SupportSQLiteDatabase) {
-        val sampleEvents = getSampleEvents()
-        for (event in sampleEvents) {
-            val completedInt = if (event.isCompleted) 1 else 0
-            val sql = """
-                INSERT INTO events (title, description, board_id, start_date, start_time, end_time, is_all_day, repeat_rule, is_completed, has_reminder, created_at, updated_at)
-                VALUES ('${event.title.replace("'", "''")}', null, ${event.boardId}, '${event.startDate}', '${event.startTime}', '${event.endTime}', 0, 'NONE', $completedInt, 0, ${System.currentTimeMillis()}, ${System.currentTimeMillis()})
-            """.trimIndent()
-            db.execSQL(sql)
-        }
+        prefs.edit().putBoolean(KEY_SEEDED_AUG_2026_V1, true).apply()
     }
 }

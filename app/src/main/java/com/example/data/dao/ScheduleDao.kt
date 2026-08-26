@@ -26,6 +26,9 @@ interface ScheduleDao {
     @Query("SELECT * FROM events")
     fun getAllEvents(): Flow<List<EventEntity>>
 
+    @Query("SELECT * FROM events")
+    suspend fun getAllEventsList(): List<EventEntity>
+
     @Query("SELECT * FROM events WHERE id = :eventId")
     suspend fun getEventById(eventId: Int): EventEntity?
 
@@ -40,6 +43,9 @@ interface ScheduleDao {
 
     @Delete
     suspend fun deleteEvent(event: EventEntity)
+
+    @Query("DELETE FROM events WHERE id = :eventId")
+    suspend fun deleteEventById(eventId: Int)
 
     @Query("UPDATE events SET board_id = :newBoardId WHERE board_id = :oldBoardId")
     suspend fun migrateEventsToNewBoard(oldBoardId: Int, newBoardId: Int)
