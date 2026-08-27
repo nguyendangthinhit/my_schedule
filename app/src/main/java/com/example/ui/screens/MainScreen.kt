@@ -47,6 +47,7 @@ sealed class BottomNavItem(val route: String, val title: String, val icon: Image
     object Settings : BottomNavItem("settings", "Cài đặt", Icons.Default.Settings)
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun MainScreen(
     viewModel: ScheduleViewModel,
@@ -55,6 +56,7 @@ fun MainScreen(
 ) {
     val context = LocalContext.current
     val navController = rememberNavController()
+    val isImeVisible = WindowInsets.isImeVisible
 
     // Initialize notification settings
     LaunchedEffect(Unit) {
@@ -87,14 +89,21 @@ fun MainScreen(
     }
 
     Scaffold(
-        bottomBar = { BottomNavigationBar(navController) },
+        bottomBar = {
+            if (!isImeVisible) {
+                BottomNavigationBar(navController)
+            }
+        },
         containerColor = MaterialTheme.colorScheme.background,
         contentWindowInsets = WindowInsets.systemBars
     ) { innerPadding ->
         NavHost(
             navController = navController,
             startDestination = BottomNavItem.Home.route,
-            modifier = Modifier.padding(innerPadding)
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+                .consumeWindowInsets(innerPadding)
         ) {
             composable(BottomNavItem.Home.route) {
                 HomeScreen(
