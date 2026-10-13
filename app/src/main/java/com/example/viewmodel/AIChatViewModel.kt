@@ -241,11 +241,13 @@ class AIChatViewModel(
                 )
 
                 val response = withContext(Dispatchers.IO) {
-                    geminiService.generateContent(
-                        model = GeminiApiService.MODEL_GEMINI_DEFAULT,
-                        apiKey = rawKey,
-                        request = request
-                    )
+                    AiConfigHelper.executeWithKeyRotation { keyToUse ->
+                        geminiService.generateContent(
+                            model = GeminiApiService.MODEL_GEMINI_DEFAULT,
+                            apiKey = keyToUse,
+                            request = request
+                        )
+                    }
                 }
 
                 val rawReplyText = response.candidates?.firstOrNull()?.content?.parts?.firstOrNull()?.text

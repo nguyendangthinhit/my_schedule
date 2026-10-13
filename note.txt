@@ -1,0 +1,1 @@
+sau này cái này cần phải dùng database thật để connect nó với server, và có 1 version dùng cho web nữa, đằng nào sau này cái này cũng sẽ được thiết lập như là một con agent 

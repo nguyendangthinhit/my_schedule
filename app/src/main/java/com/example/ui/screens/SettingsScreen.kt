@@ -1,6 +1,7 @@
 package com.example.ui.screens
 
 import android.Manifest
+import android.content.ComponentName
 import android.content.pm.PackageManager
 import android.os.Build
 import android.widget.Toast
@@ -54,6 +55,8 @@ fun SettingsScreen(viewModel: ScheduleViewModel) {
 
     var showEnableGpsDialog by remember { mutableStateOf(false) }
     var showLocationPermissionDialog by remember { mutableStateOf(false) }
+    var showApiKeySettingsDialog by remember { mutableStateOf(false) }
+    var tempApiKeySettingsInput by remember { mutableStateOf("") }
 
     val locationPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestMultiplePermissions()
@@ -523,6 +526,220 @@ fun SettingsScreen(viewModel: ScheduleViewModel) {
                     }
                 }
             }
+            Spacer(modifier = Modifier.height(16.dp))
+        }
+
+        // Section: Tiện ích Màn hình chính (Widget)
+        item {
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(16.dp))
+                    .testTag("section_widgets"),
+                shape = RoundedCornerShape(16.dp),
+                color = MaterialTheme.colorScheme.surface,
+                shadowElevation = 1.dp
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            modifier = Modifier
+                                .size(36.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(PrimaryPurple.copy(alpha = 0.12f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                Icons.Default.Widgets,
+                                contentDescription = null,
+                                tint = PrimaryPurple,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Column {
+                            Text(
+                                text = "Tiện ích Màn hình chính (Widget)",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 15.sp,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Text(
+                                text = "Ghim Widget ra Home Screen Android để tương tác nhanh",
+                                fontSize = 12.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    Text(
+                        text = "Chọn mẫu Widget muốn ghim ra Màn hình chính:",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        val pinWidgetAction = { providerClass: Class<*> ->
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                                val appWidgetManager = android.appwidget.AppWidgetManager.getInstance(context)
+                                val myProvider = ComponentName(context, providerClass)
+                                if (appWidgetManager.isRequestPinAppWidgetSupported) {
+                                    appWidgetManager.requestPinAppWidget(myProvider, null, null)
+                                    Toast.makeText(context, "Đã mở hộp thoại ghim Widget ra Màn hình chính", Toast.LENGTH_SHORT).show()
+                                } else {
+                                    Toast.makeText(context, "Thiết bị không hỗ trợ ghim tự động. Hãy nhấn giữ Màn hình chính -> Widgets.", Toast.LENGTH_LONG).show()
+                                }
+                            } else {
+                                Toast.makeText(context, "Hãy nhấn giữ Màn hình chính Android -> Widgets -> Chọn ứng dụng.", Toast.LENGTH_LONG).show()
+                            }
+                        }
+
+                        OutlinedButton(
+                            onClick = { pinWidgetAction(com.example.widget.SmallScheduleWidgetProvider::class.java) },
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(10.dp),
+                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp)
+                        ) {
+                            Text("📌 Vuông (2x2)", fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                        }
+
+                        OutlinedButton(
+                            onClick = { pinWidgetAction(com.example.widget.CompactScheduleWidgetProvider::class.java) },
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(10.dp),
+                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp)
+                        ) {
+                            Text("📌 Ngang (4x2)", fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                        }
+
+                        OutlinedButton(
+                            onClick = { pinWidgetAction(com.example.widget.MicroScheduleWidgetProvider::class.java) },
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(10.dp),
+                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp)
+                        ) {
+                            Text("📌 Gọn (2x1)", fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                        }
+                    }
+                }
+            }
+            Spacer(modifier = Modifier.height(16.dp))
+        }
+
+        // Section: Cấu hình Trợ lý AI (Multi-Key Rotation)
+        item {
+            val configuredKeysCount = remember {
+                com.example.util.AiConfigHelper.getAllConfiguredKeys(context).size
+            }
+            val activeKeyPrefix = remember {
+                val key = com.example.util.AiConfigHelper.getEffectiveApiKey(context)
+                if (key.isNotBlank()) key.take(4) + "..." + key.takeLast(4) else "Chưa có"
+            }
+
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(16.dp))
+                    .testTag("section_ai_keys"),
+                shape = RoundedCornerShape(16.dp),
+                color = MaterialTheme.colorScheme.surface,
+                shadowElevation = 1.dp
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(PrimaryPurple.copy(alpha = 0.12f)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    Icons.Default.VpnKey,
+                                    contentDescription = null,
+                                    tint = PrimaryPurple,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Column {
+                                Text(
+                                    text = "Gemini API Keys & Xoay Key",
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 15.sp,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                Text(
+                                    text = "Tự động đổi Key khi gặp 429 Rate Limit",
+                                    fontSize = 12.sp,
+                                    color = Color(0xFF64748B)
+                                )
+                            }
+                        }
+
+                        Surface(
+                            shape = RoundedCornerShape(20.dp),
+                            color = if (configuredKeysCount > 0) Color(0xFFECFDF5) else Color(0xFFFEF2F2)
+                        ) {
+                            Text(
+                                text = if (configuredKeysCount > 0) "$configuredKeysCount Key active" else "Chưa có Key",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = if (configuredKeysCount > 0) Color(0xFF059669) else Color(0xFFDC2626),
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+                    HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
+                            Text("Key đang sử dụng:", fontSize = 12.sp, color = Color(0xFF64748B))
+                            Text(
+                                text = activeKeyPrefix,
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+
+                        Button(
+                            onClick = {
+                                tempApiKeySettingsInput = com.example.util.AiConfigHelper.getRawSavedKeys(context)
+                                showApiKeySettingsDialog = true
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = PrimaryPurple),
+                            shape = RoundedCornerShape(10.dp),
+                            modifier = Modifier.testTag("btn_configure_api_keys")
+                        ) {
+                            Icon(Icons.Default.Edit, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Quản lý Key", fontSize = 12.sp)
+                        }
+                    }
+                }
+            }
+            Spacer(modifier = Modifier.height(16.dp))
         }
     }
 
@@ -812,6 +1029,165 @@ fun SettingsScreen(viewModel: ScheduleViewModel) {
                     }
                 ) {
                     Text("Để sau", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            },
+            containerColor = MaterialTheme.colorScheme.surface
+        )
+    }
+
+    // Dialog: Cấu hình Gemini API Keys (Hỗ trợ nhập nhiều key & Tự động xoay key)
+    if (showApiKeySettingsDialog) {
+        val configuredKeyInfos = remember(showApiKeySettingsDialog) {
+            com.example.util.AiConfigHelper.getApiKeyInfoList(context)
+        }
+
+        AlertDialog(
+            onDismissRequest = { showApiKeySettingsDialog = false },
+            icon = {
+                Box(
+                    modifier = Modifier
+                        .size(44.dp)
+                        .clip(CircleShape)
+                        .background(PrimaryPurple.copy(alpha = 0.12f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        Icons.Default.VpnKey,
+                        contentDescription = null,
+                        tint = PrimaryPurple,
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
+            },
+            title = {
+                Text(
+                    text = "Quản lý Gemini API Keys",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 18.sp,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+            },
+            text = {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 4.dp)
+                ) {
+                    Text(
+                        text = "Nhập một hoặc nhiều API Key (mỗi key 1 dòng):",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = "⚡ Khi 1 key bị giới hạn (429 Rate Limit), hệ thống sẽ TỰ ĐỘNG XOAY sang key khác trong danh sách.",
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        lineHeight = 17.sp
+                    )
+
+                    if (configuredKeyInfos.isNotEmpty()) {
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Text(
+                            text = "Danh sách Key đang được cấu hình (${configuredKeyInfos.size}):",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = PrimaryPurple
+                        )
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Column(
+                            verticalArrangement = Arrangement.spacedBy(6.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            configuredKeyInfos.forEachIndexed { idx, info ->
+                                Surface(
+                                    shape = RoundedCornerShape(8.dp),
+                                    color = if (info.isRateLimited) Color(0xFFFEF2F2) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                                    border = androidx.compose.foundation.BorderStroke(
+                                        0.5.dp,
+                                        if (info.isRateLimited) Color(0xFFEF4444) else MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
+                                    ),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.SpaceBetween
+                                    ) {
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Text(
+                                                text = "Key #${idx + 1}: ${info.maskedKey}",
+                                                fontSize = 12.sp,
+                                                fontWeight = FontWeight.Medium,
+                                                color = MaterialTheme.colorScheme.onSurface
+                                            )
+                                            if (info.isFromBuildConfig) {
+                                                Spacer(modifier = Modifier.width(6.dp))
+                                                Surface(
+                                                    shape = RoundedCornerShape(4.dp),
+                                                    color = PrimaryPurple.copy(alpha = 0.15f)
+                                                ) {
+                                                    Text(
+                                                        text = "Mặc định",
+                                                        fontSize = 10.sp,
+                                                        color = PrimaryPurple,
+                                                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
+                                                    )
+                                                }
+                                            }
+                                        }
+
+                                        Text(
+                                            text = if (info.isRateLimited) "🔴 Rate Limit" else "🟢 Khả dụng",
+                                            fontSize = 11.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = if (info.isRateLimited) Color(0xFFDC2626) else Color(0xFF059669)
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(14.dp))
+                    OutlinedTextField(
+                        value = tempApiKeySettingsInput,
+                        onValueChange = { tempApiKeySettingsInput = it },
+                        label = { Text("Mã Gemini API Keys") },
+                        placeholder = { Text("AIzaSyKey1...\nAIzaSyKey2...\nAIzaSyKey3...") },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(min = 100.dp)
+                            .testTag("input_api_keys_settings"),
+                        singleLine = false,
+                        maxLines = 5,
+                        shape = RoundedCornerShape(10.dp)
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        val input = tempApiKeySettingsInput.trim()
+                        com.example.util.AiConfigHelper.saveRawKeysInput(context, input)
+                        showApiKeySettingsDialog = false
+                        val keysCount = com.example.util.AiConfigHelper.getAllConfiguredKeys(context).size
+                        Toast.makeText(
+                            context,
+                            "Đã cập nhật $keysCount Gemini API Key!",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = PrimaryPurple),
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Text("Lưu & Áp dụng")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showApiKeySettingsDialog = false }) {
+                    Text("Hủy", color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             },
             containerColor = MaterialTheme.colorScheme.surface

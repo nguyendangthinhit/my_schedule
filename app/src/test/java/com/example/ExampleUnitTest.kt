@@ -16,10 +16,20 @@ class ExampleUnitTest {
     }
 
     @Test
-    fun testLunarImportantHolidays() {
-        val testDate = LocalDate.of(2026, 2, 17)
-        val lunar = LunarCalendarHelper.convertSolarToLunar(testDate)
-        assertNotNull(lunar)
-        assertTrue(lunar.canChiYear.isNotBlank())
+    fun testLunarMonth11() {
+        val date2024 = LocalDate.of(2024, 10, 13)
+        val lunar2024 = LunarCalendarHelper.convertSolarToLunar(date2024)
+        assertEquals(11, lunar2024.day)
+        assertEquals(9, lunar2024.month)
+
+        val date2026 = LocalDate.of(2026, 10, 13)
+        val lunar2026 = LunarCalendarHelper.convertSolarToLunar(date2026)
+        assertEquals(4, lunar2026.day)
+        assertEquals(9, lunar2026.month)
+
+        val tet2024 = LocalDate.of(2024, 2, 10)
+        val lunarTet2024 = LunarCalendarHelper.convertSolarToLunar(tet2024)
+        assertEquals(1, lunarTet2024.day)
+        assertEquals(1, lunarTet2024.month)
     }
 }

@@ -127,17 +127,10 @@ object LunarCalendarHelper {
 
     private fun getLunarMonth11(yy: Int, timeZone: Double = 7.0): Int {
         val off = jdFromDate(31, 12, yy) - 2415021
-        var k = Math.floor(off / 29.530588853).toInt()
-        var nm = getNewMoonDay(k, timeZone)
-        var sunLong = getSunLongitude(nm, timeZone)
-        var count = 0
-        while (sunLong >= 9 && count < 15) {
-            k--
-            nm = getNewMoonDay(k, timeZone)
-            sunLong = getSunLongitude(nm, timeZone)
-            count++
-        }
-        return k
+        val k = Math.floor(off / 29.530588853).toInt()
+        val nm = getNewMoonDay(k, timeZone)
+        val sunLong = getSunLongitude(nm, timeZone)
+        return if (sunLong >= 9) k - 1 else k
     }
 
     private fun getLeapMonthOffset(a11: Int, timeZone: Double = 7.0): Int {
@@ -152,6 +145,10 @@ object LunarCalendarHelper {
             i++
         } while (arc != last && i < 14)
         return i - 1
+    }
+
+    fun clearCache() {
+        cache.clear()
     }
 
     fun convertSolarToLunar(solarDate: LocalDate): LunarDate {
@@ -179,35 +176,41 @@ object LunarCalendarHelper {
 
         val lunarDay = dayNumber - monthStart + 1
 
-        val a11 = getLunarMonth11(if (mm >= 11) yy else yy - 1, timeZone)
-        val b11 = getLunarMonth11(if (mm >= 11) yy - 1 else yy - 2, timeZone)
+        val k11 = getLunarMonth11(yy, timeZone)
+        val a11: Int
+        val b11: Int
+        if (currentK >= k11) {
+            a11 = k11
+            b11 = getLunarMonth11(yy + 1, timeZone)
+        } else {
+            a11 = getLunarMonth11(yy - 1, timeZone)
+            b11 = k11
+        }
 
-        val leapMonthDiff = a11 - b11
+        val totalMonths = b11 - a11
+        val count = currentK - a11
         var isLeap = false
         var lunarMonth: Int
-        var lunarYear: Int
 
-        if (leapMonthDiff <= 12) {
-            var count = currentK - b11
-            while (count < 0) count += 12
+        if (totalMonths <= 12) {
             lunarMonth = (count + 10) % 12 + 1
-            lunarYear = yy
-            if (lunarMonth >= 11 && mm <= 2) lunarYear = yy - 1
-            if (lunarMonth <= 2 && mm >= 11) lunarYear = yy + 1
         } else {
-            val leapOff = getLeapMonthOffset(b11, timeZone)
-            val count = currentK - b11
+            val leapOff = getLeapMonthOffset(a11, timeZone)
             if (count == leapOff) {
                 isLeap = true
-                lunarMonth = safeMod(leapOff - 3, 12) + 1
+                lunarMonth = safeMod((count - 1) + 10, 12) + 1
             } else if (count > leapOff) {
-                lunarMonth = safeMod(count - 4, 12) + 1
+                lunarMonth = safeMod((count - 1) + 10, 12) + 1
             } else {
-                lunarMonth = safeMod(count - 3, 12) + 1
+                lunarMonth = safeMod(count + 10, 12) + 1
             }
-            lunarYear = yy
-            if (mm <= 2 && lunarMonth >= 11) lunarYear = yy - 1
-            if (mm >= 11 && lunarMonth <= 2) lunarYear = yy + 1
+        }
+
+        var lunarYear = yy
+        if (lunarMonth >= 11 && mm <= 3) {
+            lunarYear = yy - 1
+        } else if (lunarMonth <= 2 && mm >= 11) {
+            lunarYear = yy + 1
         }
 
         // Clamp lunarDay and lunarMonth to valid ranges

@@ -161,51 +161,24 @@ object WidgetRenderer {
             views.setViewVisibility(R.id.layout_small_next, View.GONE)
         }
 
-        // Task list (2 items)
-        val taskLayouts = listOf(
-            R.id.layout_small_task_1 to Triple(R.id.iv_small_check_1, R.id.tv_small_task_1, R.id.iv_small_dot_1),
-            R.id.layout_small_task_2 to Triple(R.id.iv_small_check_2, R.id.tv_small_task_2, R.id.iv_small_dot_2)
-        )
-
         if (data.tasks.isEmpty() && data.upcomingEvent == null) {
             views.setViewVisibility(R.id.tv_small_empty, View.VISIBLE)
-            views.setViewVisibility(R.id.layout_small_tasks_container, View.GONE)
+            views.setViewVisibility(R.id.lv_small_tasks, View.GONE)
         } else {
             views.setViewVisibility(R.id.tv_small_empty, View.GONE)
-            views.setViewVisibility(R.id.layout_small_tasks_container, View.VISIBLE)
+            views.setViewVisibility(R.id.lv_small_tasks, View.VISIBLE)
 
-            for (i in 0 until 2) {
-                val (layoutId, components) = taskLayouts[i]
-                val (checkId, titleId, dotId) = components
+            val serviceIntent = Intent(context, ScheduleWidgetService::class.java)
+            views.setRemoteAdapter(R.id.lv_small_tasks, serviceIntent)
 
-                if (i < data.tasks.size) {
-                    val task = data.tasks[i]
-                    views.setViewVisibility(layoutId, View.VISIBLE)
-                    views.setTextViewText(titleId, task.title)
-                    views.setImageViewResource(dotId, task.dotRes)
-
-                    val checkIcon = if (task.isCompleted) {
-                        R.drawable.ic_widget_check_square_checked
-                    } else {
-                        if (isDark) R.drawable.ic_widget_check_square_empty_dark else R.drawable.ic_widget_check_square_empty
-                    }
-                    views.setImageViewResource(checkId, checkIcon)
-
-                    val toggleIntent = Intent(context, ScheduleWidgetActionReceiver::class.java).apply {
-                        action = ScheduleWidgetActionReceiver.ACTION_TOGGLE_TASK
-                        putExtra(ScheduleWidgetActionReceiver.EXTRA_EVENT_ID, task.id)
-                        putExtra(ScheduleWidgetActionReceiver.EXTRA_CURRENT_STATUS, task.isCompleted)
-                    }
-                    val togglePendingIntent = PendingIntent.getBroadcast(
-                        context, 3000 + i, toggleIntent,
-                        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-                    )
-                    views.setOnClickPendingIntent(checkId, togglePendingIntent)
-                    views.setOnClickPendingIntent(layoutId, togglePendingIntent)
-                } else {
-                    views.setViewVisibility(layoutId, View.GONE)
-                }
+            val toggleIntent = Intent(context, ScheduleWidgetActionReceiver::class.java).apply {
+                action = ScheduleWidgetActionReceiver.ACTION_TOGGLE_TASK
             }
+            val togglePendingIntent = PendingIntent.getBroadcast(
+                context, 3500, toggleIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE
+            )
+            views.setPendingIntentTemplate(R.id.lv_small_tasks, togglePendingIntent)
         }
 
         // Footer
@@ -266,44 +239,18 @@ object WidgetRenderer {
             views.setViewVisibility(R.id.layout_compact_next, View.GONE)
         }
 
-        // Task list (2 items)
-        val taskLayouts = listOf(
-            R.id.layout_compact_task_1 to Triple(R.id.iv_compact_check_1, R.id.tv_compact_task_1, R.id.iv_compact_dot_1),
-            R.id.layout_compact_task_2 to Triple(R.id.iv_compact_check_2, R.id.tv_compact_task_2, R.id.iv_compact_dot_2)
-        )
+        // Task list (ListView for scrollable tasks)
+        val serviceIntent = Intent(context, ScheduleWidgetService::class.java)
+        views.setRemoteAdapter(R.id.lv_compact_tasks, serviceIntent)
 
-        for (i in 0 until 2) {
-            val (layoutId, components) = taskLayouts[i]
-            val (checkId, titleId, dotId) = components
-
-            if (i < data.tasks.size) {
-                val task = data.tasks[i]
-                views.setViewVisibility(layoutId, View.VISIBLE)
-                views.setTextViewText(titleId, task.title)
-                views.setImageViewResource(dotId, task.dotRes)
-
-                val checkIcon = if (task.isCompleted) {
-                    R.drawable.ic_widget_check_square_checked
-                } else {
-                    if (isDark) R.drawable.ic_widget_check_square_empty_dark else R.drawable.ic_widget_check_square_empty
-                }
-                views.setImageViewResource(checkId, checkIcon)
-
-                val toggleIntent = Intent(context, ScheduleWidgetActionReceiver::class.java).apply {
-                    action = ScheduleWidgetActionReceiver.ACTION_TOGGLE_TASK
-                    putExtra(ScheduleWidgetActionReceiver.EXTRA_EVENT_ID, task.id)
-                    putExtra(ScheduleWidgetActionReceiver.EXTRA_CURRENT_STATUS, task.isCompleted)
-                }
-                val togglePendingIntent = PendingIntent.getBroadcast(
-                    context, 4000 + i, toggleIntent,
-                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-                )
-                views.setOnClickPendingIntent(checkId, togglePendingIntent)
-                views.setOnClickPendingIntent(layoutId, togglePendingIntent)
-            } else {
-                views.setViewVisibility(layoutId, View.GONE)
-            }
+        val toggleIntent = Intent(context, ScheduleWidgetActionReceiver::class.java).apply {
+            action = ScheduleWidgetActionReceiver.ACTION_TOGGLE_TASK
         }
+        val togglePendingIntent = PendingIntent.getBroadcast(
+            context, 4500, toggleIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE
+        )
+        views.setPendingIntentTemplate(R.id.lv_compact_tasks, togglePendingIntent)
 
         return views
     }

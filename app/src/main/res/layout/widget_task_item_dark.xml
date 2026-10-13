@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_task_item_root"
+    android:layout_width="match_parent"
+    android:layout_height="28dp"
+    android:gravity="center_vertical"
+    android:orientation="horizontal"
+    android:paddingHorizontal="2dp"
+    android:paddingVertical="3dp">
+
+    <ImageView
+        android:id="@+id/iv_task_check"
+        android:layout_width="15dp"
+        android:layout_height="15dp"
+        android:src="@drawable/ic_widget_check_square_empty_dark" />
+
+    <TextView
+        android:id="@+id/tv_task_title"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="6dp"
+        android:layout_weight="1"
+        android:ellipsize="end"
+        android:maxLines="1"
+        android:text="Tên công việc"
+        android:textColor="@color/widget_text_primary_dark"
+        android:textSize="11.5sp" />
+
+    <ImageView
+        android:id="@+id/iv_task_dot"
+        android:layout_width="7dp"
+        android:layout_height="7dp"
+        android:layout_marginStart="4dp"
+        android:src="@drawable/widget_dot_green" />
+</LinearLayout>

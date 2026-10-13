@@ -200,7 +200,7 @@ fun AIScreen(
                         // API Key status/config button
                         IconButton(
                             onClick = {
-                                tempApiKeyInput = customApiKey
+                                tempApiKeyInput = com.example.util.AiConfigHelper.getRawSavedKeys(context)
                                 showApiKeyDialog = true
                             },
                             modifier = Modifier.testTag("btn_ai_api_key")
@@ -259,7 +259,7 @@ fun AIScreen(
                         }
                         TextButton(
                             onClick = {
-                                tempApiKeyInput = customApiKey
+                                tempApiKeyInput = com.example.util.AiConfigHelper.getRawSavedKeys(context)
                                 showApiKeyDialog = true
                             },
                             contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)
@@ -467,39 +467,133 @@ fun AIScreen(
             }
         }
 
-    // Dialog configuration API Key
+    // Dialog configuration API Key (Hỗ trợ nhập nhiều Key & Tự động xoay Key)
     if (showApiKeyDialog) {
+        val configuredKeyInfos = remember(showApiKeyDialog) {
+            com.example.util.AiConfigHelper.getApiKeyInfoList(context)
+        }
+
         AlertDialog(
             onDismissRequest = { showApiKeyDialog = false },
             icon = {
-                Icon(
-                    Icons.Default.Key,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(28.dp)
-                )
+                Box(
+                    modifier = Modifier
+                        .size(44.dp)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        Icons.Default.Key,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
             },
             title = {
-                Text("Cấu hình Gemini API Key", fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                Text(
+                    text = "Cấu hình Gemini API Keys",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 18.sp,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
             },
             text = {
-                Column(modifier = Modifier.fillMaxWidth()) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 4.dp)
+                ) {
                     Text(
-                        text = "Vui lòng sử dụng Gemini API Key chính thức từ Google AI Studio (bắt đầu bằng 'AIzaSy...').\n\n📌 Bạn có thể lấy khóa miễn phí tại: https://aistudio.google.com/app/apikey",
+                        text = "Bạn có thể nhập NHIỀU API Key (mỗi key 1 dòng hoặc cách nhau bởi dấu phẩy).",
                         fontSize = 13.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        lineHeight = 18.sp
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurface
                     )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = "⚡ Cơ chế xoay key tự động: Khi 1 key bị chạm giới hạn lượt gọi (HTTP 429 Rate Limit / Quota Exceeded), ứng dụng sẽ TỰ ĐỘNG CHUYỂN sang key tiếp theo trong danh sách mà không làm gián đoạn cuộc trò chuyện.",
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        lineHeight = 17.sp
+                    )
+
+                    if (configuredKeyInfos.isNotEmpty()) {
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Text(
+                            text = "Danh sách Key hiện có (${configuredKeyInfos.size}):",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Column(
+                            verticalArrangement = Arrangement.spacedBy(6.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            configuredKeyInfos.forEachIndexed { idx, info ->
+                                Surface(
+                                    shape = RoundedCornerShape(8.dp),
+                                    color = if (info.isRateLimited) Color(0xFFFEF2F2) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                                    border = androidx.compose.foundation.BorderStroke(
+                                        0.5.dp,
+                                        if (info.isRateLimited) Color(0xFFEF4444) else MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
+                                    ),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.SpaceBetween
+                                    ) {
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Text(
+                                                text = "Key #${idx + 1}: ${info.maskedKey}",
+                                                fontSize = 12.sp,
+                                                fontWeight = FontWeight.Medium,
+                                                color = MaterialTheme.colorScheme.onSurface
+                                            )
+                                            if (info.isFromBuildConfig) {
+                                                Spacer(modifier = Modifier.width(6.dp))
+                                                Surface(
+                                                    shape = RoundedCornerShape(4.dp),
+                                                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
+                                                ) {
+                                                    Text(
+                                                        text = "Hệ thống",
+                                                        fontSize = 10.sp,
+                                                        color = MaterialTheme.colorScheme.primary,
+                                                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
+                                                    )
+                                                }
+                                            }
+                                        }
+
+                                        Text(
+                                            text = if (info.isRateLimited) "🔴 Rate Limit" else "🟢 Sẵn sàng",
+                                            fontSize = 11.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = if (info.isRateLimited) Color(0xFFDC2626) else Color(0xFF059669)
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+
                     Spacer(modifier = Modifier.height(14.dp))
                     OutlinedTextField(
                         value = tempApiKeyInput,
                         onValueChange = { tempApiKeyInput = it },
-                        label = { Text("Gemini API Key") },
-                        placeholder = { Text("AIzaSy...") },
+                        label = { Text("Gemini API Keys (Nhập 1 hoặc nhiều key)") },
+                        placeholder = { Text("AIzaSyKey1...\nAIzaSyKey2...\nAIzaSyKey3...") },
                         modifier = Modifier
                             .fillMaxWidth()
+                            .heightIn(min = 100.dp)
                             .testTag("input_api_key_dialog"),
-                        singleLine = true,
+                        singleLine = false,
+                        maxLines = 5,
                         shape = RoundedCornerShape(10.dp)
                     )
                 }
@@ -507,15 +601,21 @@ fun AIScreen(
             confirmButton = {
                 Button(
                     onClick = {
-                        val key = tempApiKeyInput.trim()
-                        aiViewModel.setCustomApiKey(key)
-                        com.example.util.AiConfigHelper.saveApiKey(context, key)
+                        val input = tempApiKeyInput.trim()
+                        com.example.util.AiConfigHelper.saveRawKeysInput(context, input)
+                        val effective = com.example.util.AiConfigHelper.getEffectiveApiKey(context)
+                        aiViewModel.setCustomApiKey(effective)
                         showApiKeyDialog = false
-                        Toast.makeText(context, "Đã lưu Gemini API Key thành công", Toast.LENGTH_SHORT).show()
+                        val keysCount = com.example.util.AiConfigHelper.getAllConfiguredKeys(context).size
+                        Toast.makeText(
+                            context,
+                            "Đã lưu thành công $keysCount Gemini API Key (Bật cơ chế tự động xoay key)!",
+                            Toast.LENGTH_LONG
+                        ).show()
                     },
                     shape = RoundedCornerShape(8.dp)
                 ) {
-                    Text("Lưu & Áp dụng")
+                    Text("Lưu & Kích hoạt xoay Key")
                 }
             },
             dismissButton = {

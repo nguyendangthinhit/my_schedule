@@ -161,11 +161,13 @@ class AIWeeklyReviewViewModel(
                 generationConfig = GeminiGenerationConfig(temperature = 0.5f)
             )
 
-            val response = geminiService.generateContent(
-                model = GeminiApiService.MODEL_GEMINI_DEFAULT,
-                apiKey = apiKey,
-                request = request
-            )
+            val response = AiConfigHelper.executeWithKeyRotation { keyToUse ->
+                geminiService.generateContent(
+                    model = GeminiApiService.MODEL_GEMINI_DEFAULT,
+                    apiKey = keyToUse,
+                    request = request
+                )
+            }
 
             val textResponse = response.candidates?.firstOrNull()?.content?.parts?.firstOrNull()?.text
             if (!textResponse.isNullOrBlank()) {
@@ -416,11 +418,13 @@ class AIWeeklyReviewViewModel(
 
                 val response = if (apiKey.isNotBlank()) {
                     try {
-                        geminiService.generateContent(
-                            model = GeminiApiService.MODEL_GEMINI_DEFAULT,
-                            apiKey = apiKey,
-                            request = request
-                        ).candidates?.firstOrNull()?.content?.parts?.firstOrNull()?.text
+                        AiConfigHelper.executeWithKeyRotation { keyToUse ->
+                            geminiService.generateContent(
+                                model = GeminiApiService.MODEL_GEMINI_DEFAULT,
+                                apiKey = keyToUse,
+                                request = request
+                            )
+                        }.candidates?.firstOrNull()?.content?.parts?.firstOrNull()?.text
                     } catch (e: Exception) {
                         null
                     }

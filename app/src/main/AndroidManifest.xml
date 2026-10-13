@@ -87,6 +87,11 @@
                 <action android:name="com.example.widget.ACTION_VIEW_EVENT" />
             </intent-filter>
         </receiver>
+
+        <!-- Widget RemoteViews Service for Scrollable Task List -->
+        <service
+            android:name=".widget.ScheduleWidgetService"
+            android:permission="android.permission.BIND_REMOTEVIEWS" />
     </application>
 
 </manifest>
