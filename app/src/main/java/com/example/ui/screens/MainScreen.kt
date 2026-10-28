@@ -51,12 +51,24 @@ sealed class BottomNavItem(val route: String, val title: String, val icon: Image
 @Composable
 fun MainScreen(
     viewModel: ScheduleViewModel,
+    targetTab: String? = null,
+    tabTrigger: Long = 0L,
     onNavigateToAddEvent: () -> Unit,
     onNavigateToEditEvent: (Int) -> Unit
 ) {
     val context = LocalContext.current
     val navController = rememberNavController()
     val isImeVisible = WindowInsets.isImeVisible
+
+    // Switch tab when targeted from external trigger (e.g. widget click to Home)
+    LaunchedEffect(targetTab, tabTrigger) {
+        if (targetTab != null && targetTab == BottomNavItem.Home.route) {
+            navController.navigate(BottomNavItem.Home.route) {
+                popUpTo(BottomNavItem.Home.route) { inclusive = false }
+                launchSingleTop = true
+            }
+        }
+    }
 
     // Initialize notification settings
     LaunchedEffect(Unit) {

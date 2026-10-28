@@ -152,7 +152,11 @@ class ScheduleViewModel(private val repository: EventRepository) : ViewModel() {
             )
         }
 
-        userEvents + holidayEvents
+        (userEvents + holidayEvents).sortedWith(
+            compareBy<Event> { it.date }
+                .thenBy { it.startTime }
+                .thenBy { it.id }
+        )
     }.stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
 
     private val _selectedDate = MutableStateFlow<LocalDate>(LocalDate.now())
@@ -189,11 +193,13 @@ class ScheduleViewModel(private val repository: EventRepository) : ViewModel() {
     }
 
     init {
-        // Populate initial boards if empty
+        // Populate initial 10 boards if missing
         viewModelScope.launch {
             repository.allBoards.first().let { currentBoards ->
-                if (currentBoards.isEmpty()) {
-                    EventCategory.DEFAULT_CATEGORIES.take(4).forEach { cat ->
+                val currentNames = currentBoards.map { it.name.trim().lowercase() }.toSet()
+                val currentIds = currentBoards.map { it.id }.toSet()
+                EventCategory.DEFAULT_CATEGORIES.forEach { cat ->
+                    if (!currentNames.contains(cat.title.trim().lowercase()) && !currentIds.contains(cat.id)) {
                         repository.insertBoard(cat.toEntity())
                     }
                 }
@@ -351,9 +357,12 @@ class ScheduleViewModel(private val repository: EventRepository) : ViewModel() {
     }
 
     fun deleteCategory(categoryId: Int) {
+        if (categoryId == 5) return // Protect locked holiday category
         viewModelScope.launch {
             val category = categories.value.find { it.id == categoryId }
-            category?.let { repository.deleteBoard(it.toEntity()) }
+            if (category != null && !category.isLocked) {
+                repository.deleteBoard(category.toEntity())
+            }
         }
     }
 
@@ -369,20 +378,25 @@ class ScheduleViewModel(private val repository: EventRepository) : ViewModel() {
     }
 
     // Mappers
-    private fun BoardEntity.toUiModel() = EventCategory(
-        id = id,
-        title = name,
-        color = try {
-            Color(android.graphics.Color.parseColor(colorHex))
-        } catch (e: Exception) {
-            Color(0xFF6366F1)
-        },
-        bgColor = try {
-            Color(android.graphics.Color.parseColor(colorHex)).copy(alpha = 0.12f)
-        } catch (e: Exception) {
-            Color(0xFFEEF2FF)
-        }
-    )
+    private fun BoardEntity.toUiModel(): EventCategory {
+        val isLockedCat = id == 5 || name.equals("Ngày lễ", ignoreCase = true) ||
+                colorHex.equals("#DC2626", ignoreCase = true) || colorHex.equals("#EF4444", ignoreCase = true)
+        return EventCategory(
+            id = id,
+            title = name,
+            color = try {
+                Color(android.graphics.Color.parseColor(colorHex))
+            } catch (e: Exception) {
+                Color(0xFF6366F1)
+            },
+            bgColor = try {
+                Color(android.graphics.Color.parseColor(colorHex)).copy(alpha = 0.12f)
+            } catch (e: Exception) {
+                Color(0xFFEEF2FF)
+            },
+            isLocked = isLockedCat
+        )
+    }
 
     private fun EventCategory.toEntity() = BoardEntity(
         id = id,

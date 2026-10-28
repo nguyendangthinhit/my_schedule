@@ -71,19 +71,29 @@ object WidgetRenderer {
 
         views.setTextViewText(R.id.tv_micro_date, data.microMiniDate)
 
-        // Open App
+        // Open App to Home ("Việc cần làm")
         val openAppIntent = Intent(context, MainActivity::class.java).apply {
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            action = "com.example.action.NAVIGATE_HOME"
+            setData(android.net.Uri.parse("myschedule://widget/home/micro"))
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
+            putExtra("NAVIGATE_TO", "home")
+            putExtra("action", "OPEN_HOME")
         }
         val openAppPendingIntent = PendingIntent.getActivity(
             context, 600, openAppIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
         views.setOnClickPendingIntent(R.id.widget_micro_root, openAppPendingIntent)
+        views.setOnClickPendingIntent(R.id.tv_micro_date, openAppPendingIntent)
+        views.setOnClickPendingIntent(R.id.tv_micro_title, openAppPendingIntent)
+        views.setOnClickPendingIntent(R.id.tv_micro_time, openAppPendingIntent)
 
-        // Quick Add Button
+        // Quick Add Button (Chỉ nút dấu + mới mở màn hình thêm task)
         val addIntent = Intent(context, MainActivity::class.java).apply {
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            action = "com.example.action.ADD_EVENT"
+            setData(android.net.Uri.parse("myschedule://widget/add/micro"))
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
+            putExtra("NAVIGATE_TO", "add_event")
             putExtra("action", "ADD_EVENT")
         }
         val addPendingIntent = PendingIntent.getActivity(
@@ -118,20 +128,35 @@ object WidgetRenderer {
         views.setTextViewText(R.id.tv_small_date, data.fullDate)
         views.setTextViewText(R.id.tv_small_weather, data.weatherFull)
 
-        // Open App
+        // Open App to Home ("Việc cần làm")
         val openAppIntent = Intent(context, MainActivity::class.java).apply {
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            action = "com.example.action.NAVIGATE_HOME"
+            setData(android.net.Uri.parse("myschedule://widget/home/small"))
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
+            putExtra("NAVIGATE_TO", "home")
+            putExtra("action", "OPEN_HOME")
         }
         val openAppPendingIntent = PendingIntent.getActivity(
             context, 300, openAppIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
         views.setOnClickPendingIntent(R.id.widget_small_root, openAppPendingIntent)
+        views.setOnClickPendingIntent(R.id.tv_small_date, openAppPendingIntent)
+        views.setOnClickPendingIntent(R.id.tv_small_weather, openAppPendingIntent)
         views.setOnClickPendingIntent(R.id.btn_small_view_all, openAppPendingIntent)
+        views.setOnClickPendingIntent(R.id.layout_small_next, openAppPendingIntent)
+        views.setOnClickPendingIntent(R.id.tv_small_next_title, openAppPendingIntent)
+        views.setOnClickPendingIntent(R.id.tv_small_next_category, openAppPendingIntent)
+        views.setOnClickPendingIntent(R.id.tv_small_next_time, openAppPendingIntent)
+        views.setOnClickPendingIntent(R.id.tv_small_empty, openAppPendingIntent)
+        views.setOnClickPendingIntent(R.id.tv_small_footer, openAppPendingIntent)
 
-        // Quick Add Button
+        // Quick Add Button (Chỉ nút dấu + mới mở màn hình thêm task)
         val addIntent = Intent(context, MainActivity::class.java).apply {
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            action = "com.example.action.ADD_EVENT"
+            setData(android.net.Uri.parse("myschedule://widget/add/small"))
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
+            putExtra("NAVIGATE_TO", "add_event")
             putExtra("action", "ADD_EVENT")
         }
         val addPendingIntent = PendingIntent.getActivity(
@@ -146,17 +171,6 @@ object WidgetRenderer {
             views.setTextViewText(R.id.tv_small_next_title, data.upcomingEvent.title)
             views.setTextViewText(R.id.tv_small_next_category, data.upcomingEvent.categoryTitle)
             views.setTextViewText(R.id.tv_small_next_time, data.upcomingEvent.timeRange)
-
-            val viewEventIntent = Intent(context, MainActivity::class.java).apply {
-                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-                putExtra("action", "VIEW_EVENT")
-                putExtra("event_id", data.upcomingEvent.id)
-            }
-            val viewEventPendingIntent = PendingIntent.getActivity(
-                context, 302, viewEventIntent,
-                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-            )
-            views.setOnClickPendingIntent(R.id.layout_small_next, viewEventPendingIntent)
         } else {
             views.setViewVisibility(R.id.layout_small_next, View.GONE)
         }
@@ -197,19 +211,32 @@ object WidgetRenderer {
         views.setTextViewText(R.id.tv_compact_date, data.fullDate)
         views.setTextViewText(R.id.tv_compact_weather, data.weatherShort)
 
-        // Open App
+        // Open App to Home ("Việc cần làm")
         val openAppIntent = Intent(context, MainActivity::class.java).apply {
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            action = "com.example.action.NAVIGATE_HOME"
+            setData(android.net.Uri.parse("myschedule://widget/home/compact"))
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
+            putExtra("NAVIGATE_TO", "home")
+            putExtra("action", "OPEN_HOME")
         }
         val openAppPendingIntent = PendingIntent.getActivity(
             context, 400, openAppIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
         views.setOnClickPendingIntent(R.id.widget_compact_root, openAppPendingIntent)
+        views.setOnClickPendingIntent(R.id.tv_compact_date, openAppPendingIntent)
+        views.setOnClickPendingIntent(R.id.tv_compact_weather, openAppPendingIntent)
+        views.setOnClickPendingIntent(R.id.layout_compact_next, openAppPendingIntent)
+        views.setOnClickPendingIntent(R.id.tv_compact_next_title, openAppPendingIntent)
+        views.setOnClickPendingIntent(R.id.tv_compact_next_category, openAppPendingIntent)
+        views.setOnClickPendingIntent(R.id.tv_compact_next_time, openAppPendingIntent)
 
-        // Quick Add Button
+        // Quick Add Button (Chỉ nút dấu + mới mở màn hình thêm task)
         val addIntent = Intent(context, MainActivity::class.java).apply {
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            action = "com.example.action.ADD_EVENT"
+            setData(android.net.Uri.parse("myschedule://widget/add/compact"))
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
+            putExtra("NAVIGATE_TO", "add_event")
             putExtra("action", "ADD_EVENT")
         }
         val addPendingIntent = PendingIntent.getActivity(
@@ -224,17 +251,6 @@ object WidgetRenderer {
             views.setTextViewText(R.id.tv_compact_next_title, data.upcomingEvent.title)
             views.setTextViewText(R.id.tv_compact_next_category, data.upcomingEvent.categoryTitle)
             views.setTextViewText(R.id.tv_compact_next_time, data.upcomingEvent.timeRange)
-
-            val viewEventIntent = Intent(context, MainActivity::class.java).apply {
-                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-                putExtra("action", "VIEW_EVENT")
-                putExtra("event_id", data.upcomingEvent.id)
-            }
-            val viewEventPendingIntent = PendingIntent.getActivity(
-                context, 402, viewEventIntent,
-                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-            )
-            views.setOnClickPendingIntent(R.id.layout_compact_next, viewEventPendingIntent)
         } else {
             views.setViewVisibility(R.id.layout_compact_next, View.GONE)
         }

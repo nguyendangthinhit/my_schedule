@@ -19,14 +19,20 @@ interface ScheduleDao {
     @Delete
     suspend fun deleteBoard(board: BoardEntity)
 
+    @Query("SELECT * FROM boards ORDER BY sortOrder ASC")
+    suspend fun getAllBoardsList(): List<BoardEntity>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertBoards(boards: List<BoardEntity>)
+
     @Query("SELECT COUNT(*) FROM boards")
     suspend fun getBoardCount(): Int
 
     // Events
-    @Query("SELECT * FROM events")
+    @Query("SELECT * FROM events ORDER BY start_date ASC, start_time ASC")
     fun getAllEvents(): Flow<List<EventEntity>>
 
-    @Query("SELECT * FROM events")
+    @Query("SELECT * FROM events ORDER BY start_date ASC, start_time ASC")
     suspend fun getAllEventsList(): List<EventEntity>
 
     @Query("SELECT * FROM events WHERE id = :eventId")

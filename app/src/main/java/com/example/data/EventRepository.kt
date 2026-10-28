@@ -15,9 +15,13 @@ class EventRepository(private val scheduleDao: ScheduleDao) {
     }
 
     suspend fun insertBoard(board: BoardEntity) {
-        if (scheduleDao.getBoardCount() < 5) {
+        if (scheduleDao.getBoardCount() < 20) {
             scheduleDao.insertBoard(board)
         }
+    }
+
+    suspend fun insertBoardDirect(board: BoardEntity) {
+        scheduleDao.insertBoard(board)
     }
 
     suspend fun updateBoard(board: BoardEntity) = scheduleDao.updateBoard(board)

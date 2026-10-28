@@ -57,6 +57,8 @@ fun SettingsScreen(viewModel: ScheduleViewModel) {
     var showLocationPermissionDialog by remember { mutableStateOf(false) }
     var showApiKeySettingsDialog by remember { mutableStateOf(false) }
     var tempApiKeySettingsInput by remember { mutableStateOf("") }
+    var settingsProvider by remember { mutableStateOf(com.example.util.AiConfigHelper.getSelectedProvider(context)) }
+    var settingsModel by remember { mutableStateOf(com.example.util.AiConfigHelper.getSelectedModel(context)) }
 
     val locationPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestMultiplePermissions()
@@ -174,9 +176,9 @@ fun SettingsScreen(viewModel: ScheduleViewModel) {
                                     color = MaterialTheme.colorScheme.onSurface
                                 )
                                 Text(
-                                    text = "${categories.size}/5 danh mục đã dùng",
+                                    text = "${categories.size}/20 danh mục đã dùng",
                                     fontSize = 12.sp,
-                                    color = if (categories.size >= 5) Color(0xFFEF4444) else Color(0xFF64748B)
+                                    color = if (categories.size >= 20) Color(0xFFEF4444) else Color(0xFF64748B)
                                 )
                             }
                         }
@@ -195,7 +197,7 @@ fun SettingsScreen(viewModel: ScheduleViewModel) {
                         HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
                         Spacer(modifier = Modifier.height(12.dp))
 
-                        // List of categories with Delete button
+                        // List of categories with Delete button or Locked badge
                         categories.forEach { category ->
                             val eventsCount = events.count { it.category.id == category.id }
                             Surface(
@@ -219,34 +221,73 @@ fun SettingsScreen(viewModel: ScheduleViewModel) {
                                                 .size(14.dp)
                                                 .clip(CircleShape)
                                                 .background(category.color)
+                                                .border(1.dp, Color(0xFFCBD5E1), CircleShape)
                                         )
                                         Spacer(modifier = Modifier.width(10.dp))
                                         Column {
+                                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                                Text(
+                                                    text = category.title,
+                                                    fontWeight = FontWeight.Bold,
+                                                    fontSize = 14.sp,
+                                                    color = Color(0xFF0F172A)
+                                                )
+                                                if (category.isLocked) {
+                                                    Spacer(modifier = Modifier.width(6.dp))
+                                                    Icon(
+                                                        Icons.Default.Lock,
+                                                        contentDescription = "Đã khóa",
+                                                        tint = Color(0xFFEF4444),
+                                                        modifier = Modifier.size(13.dp)
+                                                    )
+                                                }
+                                            }
                                             Text(
-                                                text = category.title,
-                                                fontWeight = FontWeight.Bold,
-                                                fontSize = 14.sp,
-                                                color = Color(0xFF0F172A)
-                                            )
-                                            Text(
-                                                text = "$eventsCount sự kiện",
+                                                text = if (category.isLocked) "Danh mục hệ thống (Tự động)" else "$eventsCount sự kiện",
                                                 fontSize = 11.sp,
-                                                color = Color(0xFF64748B)
+                                                color = if (category.isLocked) Color(0xFFEF4444) else Color(0xFF64748B)
                                             )
                                         }
                                     }
 
-                                    // Nút Xóa danh mục
-                                    IconButton(
-                                        onClick = { categoryToDelete = category },
-                                        modifier = Modifier.size(32.dp).testTag("btn_delete_category_${category.id}")
-                                    ) {
-                                        Icon(
-                                            Icons.Default.DeleteOutline,
-                                            contentDescription = "Xóa danh mục",
-                                            tint = Color(0xFFEF4444),
-                                            modifier = Modifier.size(20.dp)
-                                        )
+                                    if (category.isLocked) {
+                                        Surface(
+                                            shape = RoundedCornerShape(6.dp),
+                                            color = Color(0xFFFEF2F2),
+                                            border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFEF4444).copy(alpha = 0.3f))
+                                        ) {
+                                            Row(
+                                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                Icon(
+                                                    Icons.Default.Lock,
+                                                    contentDescription = null,
+                                                    tint = Color(0xFFEF4444),
+                                                    modifier = Modifier.size(12.dp)
+                                                )
+                                                Spacer(modifier = Modifier.width(4.dp))
+                                                Text(
+                                                    text = "Đã khóa",
+                                                    fontSize = 11.sp,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = Color(0xFFEF4444)
+                                                )
+                                            }
+                                        }
+                                    } else {
+                                        // Nút Xóa danh mục
+                                        IconButton(
+                                            onClick = { categoryToDelete = category },
+                                            modifier = Modifier.size(32.dp).testTag("btn_delete_category_${category.id}")
+                                        ) {
+                                            Icon(
+                                                Icons.Default.DeleteOutline,
+                                                contentDescription = "Xóa danh mục",
+                                                tint = Color(0xFFEF4444),
+                                                modifier = Modifier.size(20.dp)
+                                            )
+                                        }
                                     }
                                 }
                             }
@@ -255,7 +296,7 @@ fun SettingsScreen(viewModel: ScheduleViewModel) {
                         Spacer(modifier = Modifier.height(14.dp))
 
                         // Nút thêm danh mục mới
-                        if (categories.size < 5) {
+                        if (categories.size < 20) {
                             Button(
                                 onClick = {
                                     newCategoryTitle = ""
@@ -268,7 +309,7 @@ fun SettingsScreen(viewModel: ScheduleViewModel) {
                             ) {
                                 Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
                                 Spacer(modifier = Modifier.width(6.dp))
-                                Text("Thêm danh mục mới (${categories.size}/5)", fontSize = 13.sp)
+                                Text("Thêm danh mục mới (${categories.size}/20)", fontSize = 13.sp)
                             }
                         } else {
                             Surface(
@@ -283,7 +324,7 @@ fun SettingsScreen(viewModel: ScheduleViewModel) {
                                     Icon(Icons.Default.Info, contentDescription = null, tint = Color(0xFFEF4444), modifier = Modifier.size(16.dp))
                                     Spacer(modifier = Modifier.width(8.dp))
                                     Text(
-                                        text = "Đã đạt tối đa 5 danh mục sự kiện.",
+                                        text = "Đã đạt tối đa 20 danh mục sự kiện.",
                                         fontSize = 12.sp,
                                         color = Color(0xFFDC2626)
                                     )
@@ -634,14 +675,22 @@ fun SettingsScreen(viewModel: ScheduleViewModel) {
             Spacer(modifier = Modifier.height(16.dp))
         }
 
-        // Section: Cấu hình Trợ lý AI (Multi-Key Rotation)
+        // Section: Cấu hình Trợ lý AI (Multi-Key Rotation & Groq LPU)
         item {
-            val configuredKeysCount = remember {
+            val currentProvider = remember(showApiKeySettingsDialog) {
+                com.example.util.AiConfigHelper.getSelectedProvider(context)
+            }
+            val currentModel = remember(showApiKeySettingsDialog) {
+                com.example.util.AiConfigHelper.getSelectedModel(context)
+            }
+            val geminiKeysCount = remember(showApiKeySettingsDialog) {
                 com.example.util.AiConfigHelper.getAllConfiguredKeys(context).size
             }
-            val activeKeyPrefix = remember {
-                val key = com.example.util.AiConfigHelper.getEffectiveApiKey(context)
-                if (key.isNotBlank()) key.take(4) + "..." + key.takeLast(4) else "Chưa có"
+            val groqKeysCount = remember(showApiKeySettingsDialog) {
+                com.example.util.AiConfigHelper.getAllConfiguredGroqKeys(context).size
+            }
+            val currentModelName = remember(currentModel) {
+                com.example.util.AiConfigHelper.AVAILABLE_MODELS.find { it.id == currentModel }?.displayName ?: currentModel
             }
 
             Surface(
@@ -664,26 +713,27 @@ fun SettingsScreen(viewModel: ScheduleViewModel) {
                                 modifier = Modifier
                                     .size(36.dp)
                                     .clip(RoundedCornerShape(8.dp))
-                                    .background(PrimaryPurple.copy(alpha = 0.12f)),
+                                    .background(
+                                        if (currentProvider == com.example.util.AiProvider.GROQ) Color(0xFF10B981).copy(alpha = 0.15f)
+                                        else PrimaryPurple.copy(alpha = 0.12f)
+                                    ),
                                 contentAlignment = Alignment.Center
                             ) {
-                                Icon(
-                                    Icons.Default.VpnKey,
-                                    contentDescription = null,
-                                    tint = PrimaryPurple,
-                                    modifier = Modifier.size(20.dp)
+                                Text(
+                                    text = currentProvider.iconBadge,
+                                    fontSize = 18.sp
                                 )
                             }
                             Spacer(modifier = Modifier.width(12.dp))
                             Column {
                                 Text(
-                                    text = "Gemini API Keys & Xoay Key",
+                                    text = "Cấu hình AI & API Keys (Gemini & Groq)",
                                     fontWeight = FontWeight.Bold,
                                     fontSize = 15.sp,
                                     color = MaterialTheme.colorScheme.onSurface
                                 )
                                 Text(
-                                    text = "Tự động đổi Key khi gặp 429 Rate Limit",
+                                    text = "Hỗ trợ Groq LPU (chống cao tải) & Google Gemini",
                                     fontSize = 12.sp,
                                     color = Color(0xFF64748B)
                                 )
@@ -692,13 +742,13 @@ fun SettingsScreen(viewModel: ScheduleViewModel) {
 
                         Surface(
                             shape = RoundedCornerShape(20.dp),
-                            color = if (configuredKeysCount > 0) Color(0xFFECFDF5) else Color(0xFFFEF2F2)
+                            color = if (currentProvider == com.example.util.AiProvider.GROQ) Color(0xFFECFDF5) else Color(0xFFEFF6FF)
                         ) {
                             Text(
-                                text = if (configuredKeysCount > 0) "$configuredKeysCount Key active" else "Chưa có Key",
+                                text = if (currentProvider == com.example.util.AiProvider.GROQ) "⚡ Groq Active" else "🌐 Gemini Active",
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = if (configuredKeysCount > 0) Color(0xFF059669) else Color(0xFFDC2626),
+                                color = if (currentProvider == com.example.util.AiProvider.GROQ) Color(0xFF047857) else Color(0xFF1D4ED8),
                                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                             )
                         }
@@ -708,34 +758,60 @@ fun SettingsScreen(viewModel: ScheduleViewModel) {
                     HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
                     Spacer(modifier = Modifier.height(12.dp))
 
-                    Row(
+                    // Model & Key Status Summary
+                    Column(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
-                        Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
-                            Text("Key đang sử dụng:", fontSize = 12.sp, color = Color(0xFF64748B))
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text("Mô hình đang chạy:", fontSize = 12.sp, color = Color(0xFF64748B))
                             Text(
-                                text = activeKeyPrefix,
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = MaterialTheme.colorScheme.onSurface
+                                text = currentModelName,
+                                fontSize = 12.5.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.primary
                             )
                         }
 
-                        Button(
-                            onClick = {
-                                tempApiKeySettingsInput = com.example.util.AiConfigHelper.getRawSavedKeys(context)
-                                showApiKeySettingsDialog = true
-                            },
-                            colors = ButtonDefaults.buttonColors(containerColor = PrimaryPurple),
-                            shape = RoundedCornerShape(10.dp),
-                            modifier = Modifier.testTag("btn_configure_api_keys")
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Icon(Icons.Default.Edit, contentDescription = null, modifier = Modifier.size(16.dp))
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text("Quản lý Key", fontSize = 12.sp)
+                            Text("Khóa API đã lưu:", fontSize = 12.sp, color = Color(0xFF64748B))
+                            Text(
+                                text = "Gemini: $geminiKeysCount key  •  Groq: $groqKeysCount key",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
                         }
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    Button(
+                        onClick = {
+                            settingsProvider = com.example.util.AiConfigHelper.getSelectedProvider(context)
+                            settingsModel = com.example.util.AiConfigHelper.getSelectedModel(context)
+                            tempApiKeySettingsInput = if (settingsProvider == com.example.util.AiProvider.GROQ) {
+                                com.example.util.AiConfigHelper.getRawSavedGroqKeys(context)
+                            } else {
+                                com.example.util.AiConfigHelper.getRawSavedKeys(context)
+                            }
+                            showApiKeySettingsDialog = true
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = PrimaryPurple),
+                        shape = RoundedCornerShape(10.dp),
+                        modifier = Modifier.fillMaxWidth().testTag("btn_configure_api_keys")
+                    ) {
+                        Icon(Icons.Default.Settings, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Cài đặt Mô hình & Nhập API Key (Gemini / Groq)", fontSize = 12.5.sp)
                     }
                 }
             }
@@ -787,7 +863,19 @@ fun SettingsScreen(viewModel: ScheduleViewModel) {
 
                     Spacer(modifier = Modifier.height(14.dp))
 
-                    Text("Chọn màu đại diện:", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("Chọn màu đại diện:", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
+                        Text(
+                            text = selectedColorPreset.name,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = selectedColorPreset.contrastTextColor
+                        )
+                    }
                     Spacer(modifier = Modifier.height(8.dp))
 
                     LazyRow(
@@ -803,7 +891,11 @@ fun SettingsScreen(viewModel: ScheduleViewModel) {
                                     .background(preset.color)
                                     .border(
                                         width = if (isSelected) 3.dp else 1.dp,
-                                        color = if (isSelected) MaterialTheme.colorScheme.onSurface else Color.Transparent,
+                                        color = when {
+                                            isSelected -> MaterialTheme.colorScheme.onSurface
+                                            preset.isLight -> Color(0xFFCBD5E1)
+                                            else -> Color(0xFFE2E8F0)
+                                        },
                                         shape = CircleShape
                                     )
                                     .clickable { selectedColorPreset = preset },
@@ -813,7 +905,7 @@ fun SettingsScreen(viewModel: ScheduleViewModel) {
                                     Icon(
                                         Icons.Default.Check,
                                         contentDescription = "Selected",
-                                        tint = Color.White,
+                                        tint = if (preset.isLight) Color(0xFF1E293B) else Color.White,
                                         modifier = Modifier.size(18.dp)
                                     )
                                 }
@@ -829,7 +921,10 @@ fun SettingsScreen(viewModel: ScheduleViewModel) {
                     Surface(
                         shape = RoundedCornerShape(8.dp),
                         color = selectedColorPreset.bgColor,
-                        border = androidx.compose.foundation.BorderStroke(1.dp, selectedColorPreset.color),
+                        border = androidx.compose.foundation.BorderStroke(
+                            1.dp,
+                            if (selectedColorPreset.isLight) Color(0xFFCBD5E1) else selectedColorPreset.color
+                        ),
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Row(
@@ -840,13 +935,14 @@ fun SettingsScreen(viewModel: ScheduleViewModel) {
                                 modifier = Modifier
                                     .size(12.dp)
                                     .background(selectedColorPreset.color, CircleShape)
+                                    .border(1.dp, Color(0xFFCBD5E1), CircleShape)
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
                                 text = newCategoryTitle.ifBlank { "Tên danh mục mới" },
                                 fontSize = 13.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = selectedColorPreset.color
+                                color = selectedColorPreset.contrastTextColor
                             )
                         }
                     }
@@ -883,6 +979,10 @@ fun SettingsScreen(viewModel: ScheduleViewModel) {
 
     // Dialog: Xác nhận Xóa danh mục
     categoryToDelete?.let { cat ->
+        if (cat.isLocked) {
+            categoryToDelete = null
+            return@let
+        }
         val count = events.count { it.category.id == cat.id }
         AlertDialog(
             onDismissRequest = { categoryToDelete = null },
@@ -1035,10 +1135,10 @@ fun SettingsScreen(viewModel: ScheduleViewModel) {
         )
     }
 
-    // Dialog: Cấu hình Gemini API Keys (Hỗ trợ nhập nhiều key & Tự động xoay key)
+    // Dialog: Cấu hình AI & Quản lý API Keys (Gemini & Groq Cloud)
     if (showApiKeySettingsDialog) {
-        val configuredKeyInfos = remember(showApiKeySettingsDialog) {
-            com.example.util.AiConfigHelper.getApiKeyInfoList(context)
+        val configuredKeyInfos = remember(showApiKeySettingsDialog, settingsProvider) {
+            com.example.util.AiConfigHelper.getApiKeyInfoList(context, settingsProvider)
         }
 
         AlertDialog(
@@ -1046,103 +1146,110 @@ fun SettingsScreen(viewModel: ScheduleViewModel) {
             icon = {
                 Box(
                     modifier = Modifier
-                        .size(44.dp)
+                        .size(46.dp)
                         .clip(CircleShape)
-                        .background(PrimaryPurple.copy(alpha = 0.12f)),
+                        .background(
+                            if (settingsProvider == com.example.util.AiProvider.GROQ) Color(0xFF10B981).copy(alpha = 0.15f)
+                            else PrimaryPurple.copy(alpha = 0.12f)
+                        ),
                     contentAlignment = Alignment.Center
                 ) {
-                    Icon(
-                        Icons.Default.VpnKey,
-                        contentDescription = null,
-                        tint = PrimaryPurple,
-                        modifier = Modifier.size(24.dp)
+                    Text(
+                        text = settingsProvider.iconBadge,
+                        fontSize = 22.sp
                     )
                 }
             },
             title = {
-                Text(
-                    text = "Quản lý Gemini API Keys",
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 18.sp,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-            },
-            text = {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 4.dp)
-                ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(
-                        text = "Nhập một hoặc nhiều API Key (mỗi key 1 dòng):",
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.SemiBold,
+                        text = "Chọn mô hình & Quản lý API Key",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 17.5.sp,
                         color = MaterialTheme.colorScheme.onSurface
                     )
-                    Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = "⚡ Khi 1 key bị giới hạn (429 Rate Limit), hệ thống sẽ TỰ ĐỘNG XOAY sang key khác trong danh sách.",
-                        fontSize = 12.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        lineHeight = 17.sp
+                        text = "Hỗ trợ Groq LPU (Chống cao tải) & Google Gemini",
+                        fontSize = 11.5.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-
-                    if (configuredKeyInfos.isNotEmpty()) {
-                        Spacer(modifier = Modifier.height(12.dp))
+                }
+            },
+            text = {
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = 450.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    // 1. Provider Tabs
+                    item {
                         Text(
-                            text = "Danh sách Key đang được cấu hình (${configuredKeyInfos.size}):",
-                            fontSize = 12.sp,
+                            text = "1. Nền tảng AI (Provider):",
+                            fontSize = 12.5.sp,
                             fontWeight = FontWeight.Bold,
-                            color = PrimaryPurple
+                            color = MaterialTheme.colorScheme.onSurface
                         )
                         Spacer(modifier = Modifier.height(6.dp))
-                        Column(
-                            verticalArrangement = Arrangement.spacedBy(6.dp),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            configuredKeyInfos.forEachIndexed { idx, info ->
-                                Surface(
-                                    shape = RoundedCornerShape(8.dp),
-                                    color = if (info.isRateLimited) Color(0xFFFEF2F2) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                                    border = androidx.compose.foundation.BorderStroke(
-                                        0.5.dp,
-                                        if (info.isRateLimited) Color(0xFFEF4444) else MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
-                                    ),
-                                    modifier = Modifier.fillMaxWidth()
-                                ) {
-                                    Row(
-                                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.SpaceBetween
-                                    ) {
-                                        Row(verticalAlignment = Alignment.CenterVertically) {
-                                            Text(
-                                                text = "Key #${idx + 1}: ${info.maskedKey}",
-                                                fontSize = 12.sp,
-                                                fontWeight = FontWeight.Medium,
-                                                color = MaterialTheme.colorScheme.onSurface
-                                            )
-                                            if (info.isFromBuildConfig) {
-                                                Spacer(modifier = Modifier.width(6.dp))
-                                                Surface(
-                                                    shape = RoundedCornerShape(4.dp),
-                                                    color = PrimaryPurple.copy(alpha = 0.15f)
-                                                ) {
-                                                    Text(
-                                                        text = "Mặc định",
-                                                        fontSize = 10.sp,
-                                                        color = PrimaryPurple,
-                                                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
-                                                    )
-                                                }
-                                            }
-                                        }
 
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            com.example.util.AiProvider.values().forEach { prov ->
+                                val isSelected = settingsProvider == prov
+                                Surface(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .clip(RoundedCornerShape(12.dp))
+                                        .clickable {
+                                            settingsProvider = prov
+                                            settingsModel = if (prov == com.example.util.AiProvider.GROQ) {
+                                                com.example.network.GroqApiService.MODEL_LLAMA_3_3_70B
+                                            } else {
+                                                com.example.network.GeminiApiService.MODEL_GEMINI_3_5_FLASH_LITE
+                                            }
+                                            tempApiKeySettingsInput = if (prov == com.example.util.AiProvider.GROQ) {
+                                                com.example.util.AiConfigHelper.getRawSavedGroqKeys(context)
+                                            } else {
+                                                com.example.util.AiConfigHelper.getRawSavedKeys(context)
+                                            }
+                                        },
+                                    shape = RoundedCornerShape(12.dp),
+                                    color = if (isSelected) {
+                                        if (prov == com.example.util.AiProvider.GROQ) Color(0xFFECFDF5) else Color(0xFFEFF6FF)
+                                    } else {
+                                        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
+                                    },
+                                    border = androidx.compose.foundation.BorderStroke(
+                                        if (isSelected) 1.5.dp else 0.5.dp,
+                                        if (isSelected) {
+                                            if (prov == com.example.util.AiProvider.GROQ) Color(0xFF10B981) else Color(0xFF3B82F6)
+                                        } else {
+                                            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
+                                        }
+                                    )
+                                ) {
+                                    Column(
+                                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
+                                        horizontalAlignment = Alignment.CenterHorizontally
+                                    ) {
                                         Text(
-                                            text = if (info.isRateLimited) "🔴 Rate Limit" else "🟢 Khả dụng",
-                                            fontSize = 11.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            color = if (info.isRateLimited) Color(0xFFDC2626) else Color(0xFF059669)
+                                            text = "${prov.iconBadge} ${if (prov == com.example.util.AiProvider.GROQ) "Groq Cloud" else "Google Gemini"}",
+                                            fontSize = 12.sp,
+                                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                            color = if (isSelected) {
+                                                if (prov == com.example.util.AiProvider.GROQ) Color(0xFF047857) else Color(0xFF1D4ED8)
+                                            } else {
+                                                MaterialTheme.colorScheme.onSurface
+                                            }
+                                        )
+                                        Spacer(modifier = Modifier.height(2.dp))
+                                        Text(
+                                            text = if (prov == com.example.util.AiProvider.GROQ) "Siêu tốc, chống nghẽn" else "Đa năng, thông minh",
+                                            fontSize = 9.5.sp,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            maxLines = 1
                                         )
                                     }
                                 }
@@ -1150,33 +1257,336 @@ fun SettingsScreen(viewModel: ScheduleViewModel) {
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(14.dp))
-                    OutlinedTextField(
-                        value = tempApiKeySettingsInput,
-                        onValueChange = { tempApiKeySettingsInput = it },
-                        label = { Text("Mã Gemini API Keys") },
-                        placeholder = { Text("AIzaSyKey1...\nAIzaSyKey2...\nAIzaSyKey3...") },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .heightIn(min = 100.dp)
-                            .testTag("input_api_keys_settings"),
-                        singleLine = false,
-                        maxLines = 5,
-                        shape = RoundedCornerShape(10.dp)
-                    )
+                    // 2. Model Selection
+                    item {
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "2. Chọn mô hình (${if (settingsProvider == com.example.util.AiProvider.GROQ) "Groq" else "Gemini"}):",
+                            fontSize = 12.5.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Spacer(modifier = Modifier.height(6.dp))
+
+                        val modelsForProvider = com.example.util.AiConfigHelper.AVAILABLE_MODELS.filter { it.provider == settingsProvider }
+                        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            modelsForProvider.forEach { modelInfo ->
+                                val isSelected = settingsModel == modelInfo.id
+                                Surface(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clip(RoundedCornerShape(10.dp))
+                                        .clickable { settingsModel = modelInfo.id },
+                                    shape = RoundedCornerShape(10.dp),
+                                    color = if (isSelected) {
+                                        MaterialTheme.colorScheme.primary.copy(alpha = 0.08f)
+                                    } else {
+                                        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.25f)
+                                    },
+                                    border = androidx.compose.foundation.BorderStroke(
+                                        if (isSelected) 1.2.dp else 0.5.dp,
+                                        if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)
+                                    )
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        RadioButton(
+                                            selected = isSelected,
+                                            onClick = { settingsModel = modelInfo.id },
+                                            modifier = Modifier.size(20.dp),
+                                            colors = RadioButtonDefaults.colors(selectedColor = MaterialTheme.colorScheme.primary)
+                                        )
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Column(modifier = Modifier.weight(1f)) {
+                                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                                Text(
+                                                    text = modelInfo.displayName,
+                                                    fontSize = 12.sp,
+                                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.SemiBold,
+                                                    color = MaterialTheme.colorScheme.onSurface
+                                                )
+                                                if (modelInfo.isRecommended) {
+                                                    Spacer(modifier = Modifier.width(6.dp))
+                                                    Surface(
+                                                        shape = RoundedCornerShape(4.dp),
+                                                        color = Color(0xFF10B981).copy(alpha = 0.15f)
+                                                    ) {
+                                                        Text(
+                                                            text = "Khuyên dùng",
+                                                            fontSize = 9.sp,
+                                                            fontWeight = FontWeight.Bold,
+                                                            color = Color(0xFF047857),
+                                                            modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
+                                                        )
+                                                    }
+                                                }
+                                            }
+                                            Text(
+                                                text = modelInfo.description,
+                                                fontSize = 10.5.sp,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                lineHeight = 14.sp
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // 3. API Key Status & Input
+                    item {
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "3. Khóa API (${if (settingsProvider == com.example.util.AiProvider.GROQ) "Groq Key" else "Gemini Key"}):",
+                            fontSize = 12.5.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+
+                        if (configuredKeyInfos.isNotEmpty()) {
+                            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                configuredKeyInfos.forEachIndexed { idx, info ->
+                                    Surface(
+                                        shape = RoundedCornerShape(6.dp),
+                                        color = if (info.isRateLimited) Color(0xFFFEF2F2) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
+                                        modifier = Modifier.fillMaxWidth()
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.SpaceBetween
+                                        ) {
+                                            Text(
+                                                text = "Key #${idx + 1}: ${info.maskedKey}",
+                                                fontSize = 11.sp,
+                                                fontWeight = FontWeight.Medium
+                                            )
+                                            Text(
+                                                text = if (info.isRateLimited) "🔴 Rate Limit" else "🟢 Sẵn sàng",
+                                                fontSize = 10.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = if (info.isRateLimited) Color(0xFFDC2626) else Color(0xFF059669)
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                            Spacer(modifier = Modifier.height(6.dp))
+                        }
+
+                        OutlinedTextField(
+                            value = tempApiKeySettingsInput,
+                            onValueChange = { tempApiKeySettingsInput = it },
+                            label = {
+                                Text(if (settingsProvider == com.example.util.AiProvider.GROQ) "Nhập Groq API Key (gsk_...)" else "Nhập Gemini API Key (AIzaSy...)")
+                            },
+                            placeholder = {
+                                Text(if (settingsProvider == com.example.util.AiProvider.GROQ) "gsk_abcd1234...\n(Hỗ trợ nhiều key mỗi dòng 1 key)" else "AIzaSy...\n(Hỗ trợ nhiều key)")
+                            },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .heightIn(min = 85.dp)
+                                .testTag("input_api_keys_settings"),
+                            singleLine = false,
+                            maxLines = 4,
+                            shape = RoundedCornerShape(10.dp)
+                        )
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        // Thẻ hiển thị Model Info & Cơ chế xử lý sự cố chi tiết
+                        Surface(
+                            shape = RoundedCornerShape(10.dp),
+                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
+                            border = androidx.compose.foundation.BorderStroke(
+                                1.dp,
+                                MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)
+                            ),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(10.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(
+                                        Icons.Default.Info,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(
+                                        text = "Chi tiết Model & Cơ chế tự động khi có sự cố:",
+                                        fontSize = 11.5.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                }
+
+                                // Gemini Card
+                                Surface(
+                                    shape = RoundedCornerShape(8.dp),
+                                    color = Color(0xFFEFF6FF),
+                                    border = androidx.compose.foundation.BorderStroke(
+                                        if (settingsProvider == com.example.util.AiProvider.GEMINI) 1.2.dp else 0.5.dp,
+                                        if (settingsProvider == com.example.util.AiProvider.GEMINI) Color(0xFF3B82F6) else Color(0xFFBFDBFE)
+                                    ),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Column(
+                                        modifier = Modifier.padding(8.dp),
+                                        verticalArrangement = Arrangement.spacedBy(3.dp)
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Text(
+                                                text = "🌐 Google Gemini",
+                                                fontSize = 11.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = Color(0xFF1D4ED8)
+                                            )
+                                            if (settingsProvider == com.example.util.AiProvider.GEMINI) {
+                                                Surface(
+                                                    shape = RoundedCornerShape(4.dp),
+                                                    color = Color(0xFF3B82F6).copy(alpha = 0.15f)
+                                                ) {
+                                                    Text(
+                                                        text = "Đang chọn",
+                                                        fontSize = 9.sp,
+                                                        fontWeight = FontWeight.Bold,
+                                                        color = Color(0xFF1D4ED8),
+                                                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
+                                                    )
+                                                }
+                                            }
+                                        }
+                                        Text(
+                                            text = "• Mặc định: gemini-3.5-flash-lite (Gemini 3.5 Flash Lite)",
+                                            fontSize = 10.5.sp,
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = Color(0xFF1E3A8A)
+                                        )
+                                        Text(
+                                            text = "• Khi có sự cố (404 chưa mở model): Tự động chuyển tiếp sang gemini-3.1-flash-lite-preview",
+                                            fontSize = 10.sp,
+                                            color = Color(0xFF1E40AF),
+                                            lineHeight = 13.sp
+                                        )
+                                        Text(
+                                            text = "• Khi có sự cố (503 cao tải / 429 quá lượt): Tự động chuyển tiếp tức thì sang Groq Llama 3.3 70B (nếu có Groq Key) hoặc đổi sang Gemini 3.1 Flash Lite",
+                                            fontSize = 10.sp,
+                                            color = Color(0xFF1E40AF),
+                                            lineHeight = 13.sp
+                                        )
+                                        Text(
+                                            text = "👉 Nhận API Key tại: aistudio.google.com",
+                                            fontSize = 10.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = Color(0xFF1D4ED8)
+                                        )
+                                    }
+                                }
+
+                                // Groq Card
+                                Surface(
+                                    shape = RoundedCornerShape(8.dp),
+                                    color = Color(0xFFF0FDF4),
+                                    border = androidx.compose.foundation.BorderStroke(
+                                        if (settingsProvider == com.example.util.AiProvider.GROQ) 1.2.dp else 0.5.dp,
+                                        if (settingsProvider == com.example.util.AiProvider.GROQ) Color(0xFF10B981) else Color(0xFF86EFAC)
+                                    ),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Column(
+                                        modifier = Modifier.padding(8.dp),
+                                        verticalArrangement = Arrangement.spacedBy(3.dp)
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Text(
+                                                text = "⚡ Groq LPU (Grod)",
+                                                fontSize = 11.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = Color(0xFF047857)
+                                            )
+                                            if (settingsProvider == com.example.util.AiProvider.GROQ) {
+                                                Surface(
+                                                    shape = RoundedCornerShape(4.dp),
+                                                    color = Color(0xFF10B981).copy(alpha = 0.15f)
+                                                ) {
+                                                    Text(
+                                                        text = "Đang chọn",
+                                                        fontSize = 9.sp,
+                                                        fontWeight = FontWeight.Bold,
+                                                        color = Color(0xFF047857),
+                                                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
+                                                    )
+                                                }
+                                            }
+                                        }
+                                        Text(
+                                            text = "• Mặc định: Groq Llama 3.3 70B Versatile (llama-3.3-70b-versatile)",
+                                            fontSize = 10.5.sp,
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = Color(0xFF065F46)
+                                        )
+                                        Text(
+                                            text = "• Khi có sự cố (Rate limit / Quá lượt): Tự động xoay vòng danh sách Key dự phòng (Key Rotation) hoặc đổi sang Llama 3.1 8B Instant",
+                                            fontSize = 10.sp,
+                                            color = Color(0xFF166534),
+                                            lineHeight = 13.sp
+                                        )
+                                        Text(
+                                            text = "• Ưu điểm: Tốc độ LPU 300-800 tok/s, miễn phí, không bao giờ bị nghẽn 'Server Overloaded'",
+                                            fontSize = 10.sp,
+                                            color = Color(0xFF166534),
+                                            lineHeight = 13.sp
+                                        )
+                                        Text(
+                                            text = "👉 Nhận Groq Key miễn phí tại: console.groq.com",
+                                            fontSize = 10.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = Color(0xFF15803D)
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
             },
             confirmButton = {
                 Button(
                     onClick = {
                         val input = tempApiKeySettingsInput.trim()
-                        com.example.util.AiConfigHelper.saveRawKeysInput(context, input)
+                        if (input.isNotBlank()) {
+                            if (settingsProvider == com.example.util.AiProvider.GROQ) {
+                                com.example.util.AiConfigHelper.saveRawGroqKeysInput(context, input)
+                            } else {
+                                com.example.util.AiConfigHelper.saveRawKeysInput(context, input)
+                            }
+                        }
+                        com.example.util.AiConfigHelper.setSelectedProvider(context, settingsProvider)
+                        com.example.util.AiConfigHelper.setSelectedModel(context, settingsModel)
                         showApiKeySettingsDialog = false
-                        val keysCount = com.example.util.AiConfigHelper.getAllConfiguredKeys(context).size
+
+                        val providerName = if (settingsProvider == com.example.util.AiProvider.GROQ) "Groq Cloud" else "Google Gemini"
+                        val modelName = com.example.util.AiConfigHelper.AVAILABLE_MODELS.find { it.id == settingsModel }?.displayName ?: settingsModel
                         Toast.makeText(
                             context,
-                            "Đã cập nhật $keysCount Gemini API Key!",
-                            Toast.LENGTH_SHORT
+                            "Đã áp dụng $providerName ($modelName)!",
+                            Toast.LENGTH_LONG
                         ).show()
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = PrimaryPurple),

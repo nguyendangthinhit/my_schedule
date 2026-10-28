@@ -543,6 +543,7 @@ fun CategoryFilterBar(
                             modifier = Modifier
                                 .size(8.dp)
                                 .background(category.color, CircleShape)
+                                .border(0.5.dp, Color(0xFFCBD5E1), CircleShape)
                         )
                         Spacer(modifier = Modifier.width(6.dp))
                         Text("${category.title} ($count)", fontSize = 12.sp)
@@ -550,7 +551,7 @@ fun CategoryFilterBar(
                 },
                 colors = FilterChipDefaults.filterChipColors(
                     selectedContainerColor = category.color,
-                    selectedLabelColor = Color.White,
+                    selectedLabelColor = if ((0.299 * category.color.red + 0.587 * category.color.green + 0.114 * category.color.blue) > 0.75) Color(0xFF1E293B) else Color.White,
                     containerColor = MaterialTheme.colorScheme.surface,
                     labelColor = MaterialTheme.colorScheme.onSurfaceVariant
                 ),
@@ -558,7 +559,7 @@ fun CategoryFilterBar(
                     enabled = true,
                     selected = isSelected,
                     borderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f),
-                    selectedBorderColor = category.color
+                    selectedBorderColor = if ((0.299 * category.color.red + 0.587 * category.color.green + 0.114 * category.color.blue) > 0.75) Color(0xFFCBD5E1) else category.color
                 ),
                 shape = RoundedCornerShape(20.dp)
             )

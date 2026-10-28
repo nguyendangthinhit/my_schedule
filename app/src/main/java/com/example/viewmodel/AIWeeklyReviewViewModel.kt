@@ -394,12 +394,12 @@ class AIWeeklyReviewViewModel(
 
                 val systemPrompt = """
                     Bạn là Trợ lý My_schedule AI chuyên phân tích hiệu suất và lịch trình.
-                    Dữ liệu phân tích tuần này:
+                    Dữ liệu phân tích tuần này của người dùng:
                     - Tóm tắt: ${review.summary}
                     - Điểm mạnh: ${review.strengths.joinToString("; ")}
                     - Cần cải thiện: ${review.improvements.joinToString("; ")}
                     - Thói quen: Ngày hiệu quả nhất ${review.habits.mostProductiveDay}, kém nhất ${review.habits.leastProductiveDay}
-                    Hãy trả lời câu hỏi của người dùng bằng tiếng Việt thân thiện, rõ ràng, ngắn gọn và đưa ra lời khuyên thực tế nhất.
+                    LƯU Ý: Bạn ĐÃ ĐƯỢC TÍCH HỢP TRỰC TIẾP với dữ liệu lịch trình của người dùng. TUYỆT ĐỐI KHÔNG BAO GIỜ trả lời 'tôi không có quyền truy cập cơ sở dữ liệu'. Hãy dựa trên các phân tích và trả lời câu hỏi bằng tiếng Việt thân thiện, tích cực, rõ ràng và đưa ra lời khuyên thực tế nhất.
                 """.trimIndent()
 
                 val request = GeminiRequest(

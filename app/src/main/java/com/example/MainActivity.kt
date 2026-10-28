@@ -25,6 +25,7 @@ import com.example.viewmodel.ScheduleViewModelFactory
 class MainActivity : ComponentActivity() {
   private var navigateToExtra by androidx.compose.runtime.mutableStateOf<String?>(null)
   private var editEventIdExtra by androidx.compose.runtime.mutableStateOf<Int?>(null)
+  private var navigationTrigger by androidx.compose.runtime.mutableStateOf(0L)
 
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
@@ -63,7 +64,8 @@ class MainActivity : ComponentActivity() {
           AppNavigation(
             viewModel = scheduleViewModel,
             navigateTo = navigateToExtra,
-            editEventId = editEventIdExtra
+            editEventId = editEventIdExtra,
+            navigationTrigger = navigationTrigger
           )
         }
       }
@@ -79,20 +81,28 @@ class MainActivity : ComponentActivity() {
   private fun handleIntent(intent: android.content.Intent?) {
     if (intent != null) {
       val nav = intent.getStringExtra("NAVIGATE_TO")
-      val action = intent.getStringExtra("action")
+      val action = intent.getStringExtra("action") ?: intent.action
+      val dataStr = intent.data?.toString() ?: ""
       val eventId = if (intent.hasExtra("EDIT_EVENT_ID")) {
         intent.getIntExtra("EDIT_EVENT_ID", -1)
       } else {
         intent.getIntExtra("event_id", -1)
       }
 
-      if (action == "ADD_EVENT" || nav == "add_event") {
+      if (action == "ADD_EVENT" || action == "com.example.action.ADD_EVENT" || nav == "add_event" || dataStr.contains("/add")) {
         navigateToExtra = "add_event"
+        editEventIdExtra = null
+      } else if (action == "OPEN_HOME" || action == "com.example.action.NAVIGATE_HOME" || nav == "home" || dataStr.contains("/home")) {
+        navigateToExtra = "home"
+        editEventIdExtra = null
+      } else if (eventId != -1) {
+        editEventIdExtra = eventId
+        navigateToExtra = null
       } else {
-        navigateToExtra = nav
+        navigateToExtra = "home"
+        editEventIdExtra = null
       }
-
-      editEventIdExtra = if (eventId != -1) eventId else null
+      navigationTrigger = System.currentTimeMillis()
     }
   }
 }

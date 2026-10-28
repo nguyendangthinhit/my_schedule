@@ -1180,7 +1180,7 @@ fun DayScheduleView(
     ) { page ->
         val pageDate = pageToDate(page)
         val dayEvents = remember(pageDate, events) {
-            events.filter { it.date == pageDate }
+            events.filter { it.date == pageDate }.sortedBy { it.startTime }
         }
         DayScheduleContent(
             activeDate = pageDate,
@@ -1509,7 +1509,7 @@ fun WeekCalendarGridCard(
                     val isDateToday = date == today
                     val shortDay = DateUtils.getVietnameseDayOfWeek(date.dayOfWeek, short = true)
                     val lunar = remember(date) { LunarCalendarHelper.convertSolarToLunar(date) }
-                    val eventsOnThisDay = events.filter { it.date == date }
+                    val eventsOnThisDay = events.filter { it.date == date }.sortedBy { it.startTime }
                     val hasHoliday = lunar.holidayName != null || eventsOnThisDay.any { it.category.id == EventCategory.HOLIDAY.id }
                     val colWeather = weatherMap[date]
 
@@ -1578,7 +1578,7 @@ fun WeekCalendarGridCard(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .heightIn(max = 360.dp)
+                    .heightIn(max = 440.dp)
                     .verticalScroll(weekScrollState)
             ) {
                 Row(
@@ -1619,7 +1619,7 @@ fun WeekCalendarGridCard(
                             val isSelected = date == activeDate
                             val isDateToday = date == today
                             val eventsForThisDay = remember(date, events) {
-                                events.filter { it.date == date }
+                                events.filter { it.date == date }.sortedBy { it.startTime }
                             }
                             val positionedEvents = remember(eventsForThisDay) {
                                 calculatePositionedTimelineEvents(
@@ -1787,14 +1787,14 @@ fun WeekScheduleView(
     val selectedLunar = remember(activeDate) { LunarCalendarHelper.convertSolarToLunar(activeDate) }
     val selectedWeather = weatherMap[activeDate]
     val dayEvents = remember(activeDate, events) {
-        events.filter { it.date == activeDate }
+        events.filter { it.date == activeDate }.sortedBy { it.startTime }
     }
 
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
             .padding(horizontal = 10.dp),
-        contentPadding = PaddingValues(top = 4.dp, bottom = 12.dp)
+        contentPadding = PaddingValues(top = 4.dp, bottom = 80.dp)
     ) {
         // Week Calendar ViewPager (HorizontalPager)
         item {
@@ -2137,7 +2137,7 @@ fun MonthCalendarGridCard(
 
                         val isSelected = cellDate == activeDate
                         val isCellToday = cellDate == today
-                        val cellEvents = events.filter { it.date == cellDate }
+                        val cellEvents = events.filter { it.date == cellDate }.sortedBy { it.startTime }
                         val lunar = remember(cellDate) { LunarCalendarHelper.convertSolarToLunar(cellDate) }
                         val hasHoliday = (showLunarCalendar && lunar.holidayName != null) || cellEvents.any { it.category.id == EventCategory.HOLIDAY.id }
                         val cellWeather = weatherMap[cellDate]
@@ -2326,7 +2326,7 @@ fun MonthScheduleView(
     val selectedWeather = weatherMap[activeDate]
 
     val dayEvents = remember(activeDate, events) {
-        events.filter { it.date == activeDate }
+        events.filter { it.date == activeDate }.sortedBy { it.startTime }
     }
     val selectedLunar = remember(activeDate) { LunarCalendarHelper.convertSolarToLunar(activeDate) }
     val holidayTitle = selectedLunar.holidayName ?: dayEvents.firstOrNull { it.category.id == EventCategory.HOLIDAY.id }?.title
@@ -2335,7 +2335,7 @@ fun MonthScheduleView(
         modifier = Modifier
             .fillMaxSize()
             .padding(horizontal = 10.dp),
-        contentPadding = PaddingValues(top = 4.dp, bottom = 12.dp)
+        contentPadding = PaddingValues(top = 4.dp, bottom = 80.dp)
     ) {
         // Month Calendar ViewPager (HorizontalPager)
         item {

@@ -4,6 +4,7 @@ import android.app.DatePickerDialog
 import android.app.TimePickerDialog
 import android.widget.Toast
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
@@ -65,7 +66,8 @@ fun AddEventScreen(
     var title by remember { mutableStateOf(existingEvent?.title ?: "") }
     var note by remember { mutableStateOf(existingEvent?.reminderNote ?: "") }
     var selectedCategory by remember(categories, existingEvent) {
-        mutableStateOf(existingEvent?.category ?: categories.firstOrNull() ?: EventCategory.WORK)
+        val initial = existingEvent?.category ?: categories.firstOrNull { !it.isLocked } ?: EventCategory.WORK
+        mutableStateOf(if (initial.isLocked) categories.firstOrNull { !it.isLocked } ?: EventCategory.WORK else initial)
     }
     var startHour by remember { mutableIntStateOf(existingEvent?.startTime?.hour ?: 9) }
     var startMinute by remember { mutableIntStateOf(existingEvent?.startTime?.minute ?: 0) }
@@ -604,17 +606,36 @@ fun AddEventScreen(
                 items(categories.size) { index ->
                     val category = categories[index]
                     val isSelected = selectedCategory.id == category.id
+                    val isLocked = category.isLocked
                     Surface(
                         modifier = Modifier
                             .widthIn(min = 90.dp)
                             .clip(RoundedCornerShape(12.dp))
-                            .clickable { selectedCategory = category }
+                            .clickable {
+                                if (isLocked) {
+                                    Toast.makeText(
+                                        context,
+                                        "Danh mục '${category.title}' màu đỏ được hệ thống quản lý tự động theo ngày lễ, không thể chọn cho sự kiện thủ công.",
+                                        Toast.LENGTH_SHORT
+                                    ).show()
+                                } else {
+                                    selectedCategory = category
+                                }
+                            }
                             .testTag("cat_option_${category.id}"),
                         shape = RoundedCornerShape(12.dp),
-                        color = if (isSelected) category.getThemedBgColor() else MaterialTheme.colorScheme.surface,
+                        color = when {
+                            isLocked -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                            isSelected -> category.getThemedBgColor()
+                            else -> MaterialTheme.colorScheme.surface
+                        },
                         border = androidx.compose.foundation.BorderStroke(
                             width = if (isSelected) 2.dp else 1.dp,
-                            color = if (isSelected) category.color else MaterialTheme.colorScheme.outlineVariant
+                            color = when {
+                                isLocked -> Color(0xFFEF4444).copy(alpha = 0.5f)
+                                isSelected -> category.color
+                                else -> MaterialTheme.colorScheme.outlineVariant
+                            }
                         )
                     ) {
                         Column(
@@ -624,10 +645,18 @@ fun AddEventScreen(
                             Box(
                                 modifier = Modifier
                                     .size(16.dp)
-                                    .background(category.color, CircleShape),
+                                    .background(category.color, CircleShape)
+                                    .border(1.dp, Color(0xFFCBD5E1), CircleShape),
                                 contentAlignment = Alignment.Center
                             ) {
-                                if (isSelected) {
+                                if (isLocked) {
+                                    Icon(
+                                        Icons.Default.Lock,
+                                        contentDescription = "Đã khóa",
+                                        tint = Color.White,
+                                        modifier = Modifier.size(10.dp)
+                                    )
+                                } else if (isSelected) {
                                     Icon(
                                         Icons.Default.Check,
                                         contentDescription = null,
@@ -637,13 +666,28 @@ fun AddEventScreen(
                                 }
                             }
                             Spacer(modifier = Modifier.height(6.dp))
-                            Text(
-                                text = category.title,
-                                fontSize = 13.sp,
-                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                color = if (isSelected) category.color else MaterialTheme.colorScheme.onSurfaceVariant,
-                                maxLines = 1
-                            )
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    text = category.title,
+                                    fontSize = 13.sp,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                    color = when {
+                                        isLocked -> Color(0xFFEF4444)
+                                        isSelected -> category.contrastTextColor
+                                        else -> MaterialTheme.colorScheme.onSurfaceVariant
+                                    },
+                                    maxLines = 1
+                                )
+                                if (isLocked) {
+                                    Spacer(modifier = Modifier.width(3.dp))
+                                    Icon(
+                                        Icons.Default.Lock,
+                                        contentDescription = "Khóa",
+                                        tint = Color(0xFFEF4444),
+                                        modifier = Modifier.size(11.dp)
+                                    )
+                                }
+                            }
                         }
                     }
                 }

@@ -243,6 +243,28 @@ object SampleDataSeeder {
     }
 
     suspend fun seedSampleDataIfNeeded(context: Context, dao: ScheduleDao) = withContext(Dispatchers.IO) {
+        // Ensure all 10 default categories exist in SQL boards table
+        val defaultBoards = listOf(
+            BoardEntity(id = 1, name = "Công việc", colorHex = "#3B82F6", isVisible = true, sortOrder = 0),
+            BoardEntity(id = 2, name = "Học tập", colorHex = "#10B981", isVisible = true, sortOrder = 1),
+            BoardEntity(id = 3, name = "Đi chơi", colorHex = "#06B6D4", isVisible = true, sortOrder = 2),
+            BoardEntity(id = 4, name = "Cuộc họp", colorHex = "#F59E0B", isVisible = true, sortOrder = 3),
+            BoardEntity(id = 5, name = "Ngày lễ", colorHex = "#EF4444", isVisible = true, sortOrder = 4),
+            BoardEntity(id = 6, name = "Cá nhân", colorHex = "#8B5CF6", isVisible = true, sortOrder = 5),
+            BoardEntity(id = 7, name = "Sức khỏe", colorHex = "#EC4899", isVisible = true, sortOrder = 6),
+            BoardEntity(id = 8, name = "Tài chính", colorHex = "#14B8A6", isVisible = true, sortOrder = 7),
+            BoardEntity(id = 9, name = "Việc cần làm", colorHex = "#6366F1", isVisible = true, sortOrder = 8),
+            BoardEntity(id = 10, name = "Gia đình", colorHex = "#F97316", isVisible = true, sortOrder = 9)
+        )
+        val currentBoards = try { dao.getAllBoardsList() } catch (e: Exception) { emptyList() }
+        val currentNames = currentBoards.map { it.name.trim().lowercase() }.toSet()
+        val currentIds = currentBoards.map { it.id }.toSet()
+        for (board in defaultBoards) {
+            if (!currentNames.contains(board.name.trim().lowercase()) && !currentIds.contains(board.id)) {
+                dao.insertBoard(board)
+            }
+        }
+
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         val alreadySeeded = prefs.getBoolean(KEY_SEEDED_AUG_2026_V1, false)
 

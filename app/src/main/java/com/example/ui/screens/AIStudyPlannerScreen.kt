@@ -40,7 +40,11 @@ import com.example.network.GeminiContent
 import com.example.network.GeminiGenerationConfig
 import com.example.network.GeminiPart
 import com.example.network.GeminiRequest
+import com.example.network.GroqApiService
+import com.example.network.GroqChatRequest
+import com.example.network.GroqMessage
 import com.example.util.AiConfigHelper
+import com.example.util.AiProvider
 import com.example.viewmodel.ScheduleViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -746,6 +750,7 @@ private fun AIStudyPlannerAdjustingView(
     onBack: () -> Unit,
     onCompleted: (Map<Int, List<PlanTimelineItem>>) -> Unit
 ) {
+    val context = LocalContext.current
     var stepProgress by remember { mutableIntStateOf(1) }
     val geminiService = remember { GeminiApiService.create() }
 
@@ -767,7 +772,8 @@ private fun AIStudyPlannerAdjustingView(
                 taskList = taskList,
                 selectedTimeSlots = selectedTimeSlots,
                 existingEvents = existingEvents,
-                todayStartOfWeek = todayStartOfWeek
+                todayStartOfWeek = todayStartOfWeek,
+                context = context
             )
         }
 
@@ -1815,11 +1821,14 @@ private suspend fun generateStudyPlan(
     taskList: List<StudyTaskItem>,
     selectedTimeSlots: Set<String>,
     existingEvents: List<Event>,
-    todayStartOfWeek: LocalDate
+    todayStartOfWeek: LocalDate,
+    context: android.content.Context? = null
 ): Map<Int, List<PlanTimelineItem>> {
-    val apiKey = AiConfigHelper.getEffectiveApiKey()
+    val provider = if (context != null) AiConfigHelper.getSelectedProvider(context) else AiProvider.GROQ
+    val groqKey = AiConfigHelper.getEffectiveGroqKey(context)
+    val geminiKey = AiConfigHelper.getEffectiveApiKey(context)
 
-    if (apiKey.isNotBlank() && taskList.isNotEmpty()) {
+    if (taskList.isNotEmpty() && (groqKey.isNotBlank() || geminiKey.isNotBlank())) {
         try {
             val taskListSummary = taskList.mapIndexed { idx, t ->
                 "${idx + 1}. Môn/Nhiệm vụ: \"${t.title}\", Ghi chú/Mục tiêu: \"${t.subtitle.ifBlank { "Không có" }}\", Hạn chót: \"${t.deadline.ifBlank { "Không có" }}\", Tổng số giờ cần học: ${t.hours} giờ, Mức độ ưu tiên/Độ khó: ${t.difficulty.title}"
@@ -1887,36 +1896,79 @@ private suspend fun generateStudyPlan(
                 append("Ghi chú: dayIndex là số nguyên từ 0 (Thứ 2) đến 6 (Chủ Nhật). time là chuỗi 'HH:mm'.")
             }
 
-            val request = GeminiRequest(
-                contents = listOf(
-                    GeminiContent(
-                        role = "user",
-                        parts = listOf(GeminiPart(text = prompt))
-                    )
-                ),
-                generationConfig = GeminiGenerationConfig(
+            var responseText = ""
+
+            if (provider == AiProvider.GROQ && groqKey.isNotBlank()) {
+                val groqService = GroqApiService.create()
+                val groqReq = GroqChatRequest(
+                    model = GroqApiService.MODEL_LLAMA_3_3_70B,
+                    messages = listOf(
+                        GroqMessage(role = "system", content = "Bạn là chuyên gia lập kế hoạch học tập thông minh (AI Planner)."),
+                        GroqMessage(role = "user", content = prompt)
+                    ),
                     temperature = 0.4f,
-                    topP = 0.95f,
-                    topK = 40
+                    maxTokens = 8192
                 )
-            )
+                val res = AiConfigHelper.executeGroqWithKeyRotation(context) { key ->
+                    groqService.chatCompletion(authorization = "Bearer $key", request = groqReq)
+                }
+                responseText = res.choices?.firstOrNull()?.message?.content ?: ""
+            } else if (geminiKey.isNotBlank()) {
+                val request = GeminiRequest(
+                    contents = listOf(
+                        GeminiContent(
+                            role = "user",
+                            parts = listOf(GeminiPart(text = prompt))
+                        )
+                    ),
+                    generationConfig = GeminiGenerationConfig(
+                        temperature = 0.4f,
+                        topP = 0.95f,
+                        topK = 40,
+                        maxOutputTokens = 8192
+                    )
+                )
 
-            val response = geminiService.generateContent(
-                model = GeminiApiService.MODEL_GEMINI_DEFAULT,
-                apiKey = apiKey,
-                request = request
-            )
+                try {
+                    val response = AiConfigHelper.executeWithKeyRotation(context) { key ->
+                        geminiService.generateContent(
+                            model = GeminiApiService.MODEL_GEMINI_DEFAULT,
+                            apiKey = key,
+                            request = request
+                        )
+                    }
+                    responseText = response.candidates?.firstOrNull()?.content?.parts?.firstOrNull()?.text ?: ""
+                } catch (geminiEx: Exception) {
+                    if (groqKey.isNotBlank()) {
+                        Log.i("AIPlanner", "Gemini failed, failing over to Groq Llama 3.3...")
+                        val groqService = GroqApiService.create()
+                        val groqReq = GroqChatRequest(
+                            model = GroqApiService.MODEL_LLAMA_3_3_70B,
+                            messages = listOf(
+                                GroqMessage(role = "system", content = "Bạn là chuyên gia lập kế hoạch học tập thông minh (AI Planner)."),
+                                GroqMessage(role = "user", content = prompt)
+                            ),
+                            temperature = 0.4f,
+                            maxTokens = 8192
+                        )
+                        val res = AiConfigHelper.executeGroqWithKeyRotation(context) { key ->
+                            groqService.chatCompletion(authorization = "Bearer $key", request = groqReq)
+                        }
+                        responseText = res.choices?.firstOrNull()?.message?.content ?: ""
+                    } else {
+                        throw geminiEx
+                    }
+                }
+            }
 
-            val responseText = response.candidates?.firstOrNull()?.content?.parts?.firstOrNull()?.text ?: ""
-            Log.d("AIPlanner", "Gemini response: $responseText")
+            Log.d("AIPlanner", "AI response: $responseText")
 
             val parsedPlan = parseGeminiPlanJson(responseText, taskList)
             if (parsedPlan.isNotEmpty()) {
-                // Post-process with deterministic conflict avoidance against existing calendar events
                 return resolveAndAvoidConflicts(parsedPlan, existingEvents, todayStartOfWeek, selectedTimeSlots)
             }
         } catch (e: Exception) {
-            Log.e("AIPlanner", "Error calling Gemini for study plan", e)
+            Log.e("AIPlanner", "Error calling AI for study plan", e)
         }
     }
 

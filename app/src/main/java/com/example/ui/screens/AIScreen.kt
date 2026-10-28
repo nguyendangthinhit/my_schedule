@@ -64,6 +64,12 @@ fun AIScreen(
     val isLoading by aiViewModel.isLoading.collectAsStateWithLifecycle()
     val errorMessage by aiViewModel.errorMessage.collectAsStateWithLifecycle()
     val customApiKey by aiViewModel.customApiKey.collectAsStateWithLifecycle()
+    val activeProvider by aiViewModel.activeProvider.collectAsStateWithLifecycle()
+    val activeModel by aiViewModel.activeModel.collectAsStateWithLifecycle()
+
+    LaunchedEffect(Unit) {
+        aiViewModel.initConfig(context)
+    }
 
     val availableCategories by (scheduleViewModel?.categories?.collectAsStateWithLifecycle() ?: remember {
         mutableStateOf(EventCategory.DEFAULT_CATEGORIES)
@@ -82,14 +88,18 @@ fun AIScreen(
         return
     }
 
-    // Prepare schedule context if scheduleViewModel is available
-    val todayEvents = scheduleViewModel?.events?.collectAsStateWithLifecycle()?.value?.filter {
-        try {
-            it.startTime.toLocalDate() == LocalDate.now()
-        } catch (e: Exception) {
-            false
+    // Collect all schedule events from database
+    val allEvents = scheduleViewModel?.events?.collectAsStateWithLifecycle()?.value ?: emptyList()
+
+    val todayEvents = remember(allEvents) {
+        allEvents.filter {
+            try {
+                it.startTime.toLocalDate() == LocalDate.now()
+            } catch (e: Exception) {
+                false
+            }
         }
-    } ?: emptyList()
+    }
 
     val scheduleSummary = remember(todayEvents) {
         if (todayEvents.isEmpty()) {
@@ -113,10 +123,11 @@ fun AIScreen(
     val hasApiKey = effectiveKey.isNotBlank()
 
     val quickPrompts = listOf(
+        "📚 Trong tuần và tuần trước mình có bao nhiêu buổi học?",
+        "📊 Thống kê công việc & tỉ lệ hoàn thành tuần này",
         "⚡ Lập thời gian biểu hôm nay & điền vào lịch",
         "⏱️ Gợi ý cách phân bổ thời gian học tập & làm việc",
         "🎯 Lên lịch 3 việc quan trọng nhất hôm nay",
-        "🏃 Đề xuất lịch tập gym & nghỉ ngơi hôm nay",
         "💡 Lập lịch trình ngày mai"
     )
 
@@ -170,17 +181,57 @@ fun AIScreen(
                         Spacer(modifier = Modifier.width(12.dp))
 
                         Column {
-                            Text(
-                                text = "Trợ lý AI Lịch Trình",
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 17.sp,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                            Text(
-                                text = if (isLoading) "Đang suy nghĩ & phân bổ lịch..." else "Gợi ý & tự động điền lịch trình",
-                                fontSize = 11.sp,
-                                color = if (isLoading) MaterialTheme.colorScheme.primary else Color(0xFF10B981)
-                            )
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    text = "Trợ lý AI Lịch Trình",
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 16.sp,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                            }
+                            Spacer(modifier = Modifier.height(2.dp))
+                            // Active AI Model Pill Chip
+                            Surface(
+                                shape = RoundedCornerShape(10.dp),
+                                color = if (activeProvider == com.example.util.AiProvider.GROQ) Color(0xFFECFDF5) else Color(0xFFEFF6FF),
+                                border = androidx.compose.foundation.BorderStroke(
+                                    0.8.dp,
+                                    if (activeProvider == com.example.util.AiProvider.GROQ) Color(0xFF10B981) else Color(0xFF3B82F6)
+                                ),
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(10.dp))
+                                    .clickable { showApiKeyDialog = true }
+                                    .testTag("chip_active_ai_model")
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                ) {
+                                    val modelDisplay = remember(activeProvider, activeModel) {
+                                        when (activeModel) {
+                                            com.example.network.GroqApiService.MODEL_LLAMA_3_3_70B -> "Groq • Llama 3.3 70B"
+                                            com.example.network.GroqApiService.MODEL_LLAMA_3_1_8B -> "Groq • Llama 3.1 8B"
+                                            com.example.network.GroqApiService.MODEL_MIXTRAL_8X7B -> "Groq • Mixtral 8x7B"
+                                            com.example.network.GeminiApiService.MODEL_GEMINI_3_5_FLASH_LITE -> "Gemini • 3.5 Flash Lite"
+                                            com.example.network.GeminiApiService.MODEL_GEMINI_3_1_FLASH_LITE -> "Gemini • 3.1 Flash Lite"
+                                            else -> if (activeProvider == com.example.util.AiProvider.GROQ) "Groq LPU" else "Gemini Flash Lite"
+                                        }
+                                    }
+                                    Text(
+                                        text = "${activeProvider.iconBadge} $modelDisplay",
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = if (activeProvider == com.example.util.AiProvider.GROQ) Color(0xFF047857) else Color(0xFF1D4ED8)
+                                    )
+                                    Spacer(modifier = Modifier.width(3.dp))
+                                    Icon(
+                                        Icons.Default.ArrowDropDown,
+                                        contentDescription = "Chọn mô hình",
+                                        tint = if (activeProvider == com.example.util.AiProvider.GROQ) Color(0xFF047857) else Color(0xFF1D4ED8),
+                                        modifier = Modifier.size(14.dp)
+                                    )
+                                }
+                            }
                         }
                     }
 
@@ -293,7 +344,7 @@ fun AIScreen(
                             if (message.isError) {
                                 val lastUserMsg = messages.findLast { it.role == MessageRole.USER }
                                 if (lastUserMsg != null) {
-                                    aiViewModel.sendMessage(lastUserMsg.text, scheduleSummary)
+                                    aiViewModel.sendMessage(lastUserMsg.text, scheduleSummary, allEvents, context)
                                 }
                             }
                         },
@@ -332,7 +383,7 @@ fun AIScreen(
                             if (prompt.contains("học tập & làm việc", ignoreCase = true) || prompt.contains("phân bổ thời gian", ignoreCase = true)) {
                                 showStudyPlanner = true
                             } else if (!isLoading) {
-                                aiViewModel.sendMessage(prompt, scheduleSummary)
+                                aiViewModel.sendMessage(prompt, scheduleSummary, allEvents, context)
                             }
                         },
                         label = {
@@ -419,7 +470,7 @@ fun AIScreen(
                                         val text = inputText
                                         inputText = ""
                                         focusManager.clearFocus()
-                                        aiViewModel.sendMessage(text, scheduleSummary)
+                                        aiViewModel.sendMessage(text, scheduleSummary, allEvents, context)
                                     }
                                 }
                             )
@@ -435,7 +486,7 @@ fun AIScreen(
                                 val text = inputText
                                 inputText = ""
                                 focusManager.clearFocus()
-                                aiViewModel.sendMessage(text, scheduleSummary)
+                                aiViewModel.sendMessage(text, scheduleSummary, allEvents, context)
                             }
                         },
                         enabled = canSend,
@@ -468,9 +519,23 @@ fun AIScreen(
         }
 
     // Dialog configuration API Key (Hỗ trợ nhập nhiều Key & Tự động xoay Key)
+    // Dialog Cấu hình AI: Hỗ trợ Groq Cloud (Chống cao tải) & Google Gemini, chọn mô hình & tự động xoay Key
     if (showApiKeyDialog) {
-        val configuredKeyInfos = remember(showApiKeyDialog) {
-            com.example.util.AiConfigHelper.getApiKeyInfoList(context)
+        var dialogProvider by remember { mutableStateOf(activeProvider) }
+        var dialogModel by remember { mutableStateOf(activeModel) }
+
+        var dialogKeyInput by remember(dialogProvider) {
+            mutableStateOf(
+                if (dialogProvider == com.example.util.AiProvider.GROQ) {
+                    com.example.util.AiConfigHelper.getRawSavedGroqKeys(context)
+                } else {
+                    com.example.util.AiConfigHelper.getRawSavedKeys(context)
+                }
+            )
+        }
+
+        val keyInfos = remember(dialogProvider, showApiKeyDialog) {
+            com.example.util.AiConfigHelper.getApiKeyInfoList(context, dialogProvider)
         }
 
         AlertDialog(
@@ -478,103 +543,105 @@ fun AIScreen(
             icon = {
                 Box(
                     modifier = Modifier
-                        .size(44.dp)
+                        .size(46.dp)
                         .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)),
+                        .background(
+                            if (dialogProvider == com.example.util.AiProvider.GROQ) Color(0xFF10B981).copy(alpha = 0.15f)
+                            else MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
+                        ),
                     contentAlignment = Alignment.Center
                 ) {
-                    Icon(
-                        Icons.Default.Key,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(24.dp)
+                    Text(
+                        text = dialogProvider.iconBadge,
+                        fontSize = 22.sp
                     )
                 }
             },
             title = {
-                Text(
-                    text = "Cấu hình Gemini API Keys",
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 18.sp,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-            },
-            text = {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 4.dp)
-                ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(
-                        text = "Bạn có thể nhập NHIỀU API Key (mỗi key 1 dòng hoặc cách nhau bởi dấu phẩy).",
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.SemiBold,
+                        text = "Chọn mô hình & Cấu hình AI",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 17.5.sp,
                         color = MaterialTheme.colorScheme.onSurface
                     )
-                    Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = "⚡ Cơ chế xoay key tự động: Khi 1 key bị chạm giới hạn lượt gọi (HTTP 429 Rate Limit / Quota Exceeded), ứng dụng sẽ TỰ ĐỘNG CHUYỂN sang key tiếp theo trong danh sách mà không làm gián đoạn cuộc trò chuyện.",
-                        fontSize = 12.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        lineHeight = 17.sp
+                        text = "Hỗ trợ Groq LPU (Chống cao tải) & Google Gemini",
+                        fontSize = 11.5.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-
-                    if (configuredKeyInfos.isNotEmpty()) {
-                        Spacer(modifier = Modifier.height(12.dp))
+                }
+            },
+            text = {
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = 440.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    // 1. Provider Tabs
+                    item {
                         Text(
-                            text = "Danh sách Key hiện có (${configuredKeyInfos.size}):",
-                            fontSize = 12.sp,
+                            text = "1. Nền tảng AI (Provider):",
+                            fontSize = 12.5.sp,
                             fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.primary
+                            color = MaterialTheme.colorScheme.onSurface
                         )
                         Spacer(modifier = Modifier.height(6.dp))
-                        Column(
-                            verticalArrangement = Arrangement.spacedBy(6.dp),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            configuredKeyInfos.forEachIndexed { idx, info ->
-                                Surface(
-                                    shape = RoundedCornerShape(8.dp),
-                                    color = if (info.isRateLimited) Color(0xFFFEF2F2) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                                    border = androidx.compose.foundation.BorderStroke(
-                                        0.5.dp,
-                                        if (info.isRateLimited) Color(0xFFEF4444) else MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
-                                    ),
-                                    modifier = Modifier.fillMaxWidth()
-                                ) {
-                                    Row(
-                                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.SpaceBetween
-                                    ) {
-                                        Row(verticalAlignment = Alignment.CenterVertically) {
-                                            Text(
-                                                text = "Key #${idx + 1}: ${info.maskedKey}",
-                                                fontSize = 12.sp,
-                                                fontWeight = FontWeight.Medium,
-                                                color = MaterialTheme.colorScheme.onSurface
-                                            )
-                                            if (info.isFromBuildConfig) {
-                                                Spacer(modifier = Modifier.width(6.dp))
-                                                Surface(
-                                                    shape = RoundedCornerShape(4.dp),
-                                                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
-                                                ) {
-                                                    Text(
-                                                        text = "Hệ thống",
-                                                        fontSize = 10.sp,
-                                                        color = MaterialTheme.colorScheme.primary,
-                                                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
-                                                    )
-                                                }
-                                            }
-                                        }
 
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            com.example.util.AiProvider.values().forEach { prov ->
+                                val isSelected = dialogProvider == prov
+                                Surface(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .clip(RoundedCornerShape(12.dp))
+                                        .clickable {
+                                            dialogProvider = prov
+                                            dialogModel = if (prov == com.example.util.AiProvider.GROQ) {
+                                                com.example.network.GroqApiService.MODEL_LLAMA_3_3_70B
+                                            } else {
+                                                com.example.network.GeminiApiService.MODEL_GEMINI_3_5_FLASH_LITE
+                                            }
+                                        },
+                                    shape = RoundedCornerShape(12.dp),
+                                    color = if (isSelected) {
+                                        if (prov == com.example.util.AiProvider.GROQ) Color(0xFFECFDF5) else Color(0xFFEFF6FF)
+                                    } else {
+                                        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
+                                    },
+                                    border = androidx.compose.foundation.BorderStroke(
+                                        if (isSelected) 1.5.dp else 0.5.dp,
+                                        if (isSelected) {
+                                            if (prov == com.example.util.AiProvider.GROQ) Color(0xFF10B981) else Color(0xFF3B82F6)
+                                        } else {
+                                            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
+                                        }
+                                    )
+                                ) {
+                                    Column(
+                                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
+                                        horizontalAlignment = Alignment.CenterHorizontally
+                                    ) {
                                         Text(
-                                            text = if (info.isRateLimited) "🔴 Rate Limit" else "🟢 Sẵn sàng",
-                                            fontSize = 11.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            color = if (info.isRateLimited) Color(0xFFDC2626) else Color(0xFF059669)
+                                            text = "${prov.iconBadge} ${if (prov == com.example.util.AiProvider.GROQ) "Groq Cloud" else "Google Gemini"}",
+                                            fontSize = 12.sp,
+                                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                            color = if (isSelected) {
+                                                if (prov == com.example.util.AiProvider.GROQ) Color(0xFF047857) else Color(0xFF1D4ED8)
+                                            } else {
+                                                MaterialTheme.colorScheme.onSurface
+                                            }
+                                        )
+                                        Spacer(modifier = Modifier.height(2.dp))
+                                        Text(
+                                            text = if (prov == com.example.util.AiProvider.GROQ) "Siêu tốc, chống nghẽn" else "Đa năng, thông minh",
+                                            fontSize = 9.5.sp,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            maxLines = 1
                                         )
                                     }
                                 }
@@ -582,45 +649,341 @@ fun AIScreen(
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(14.dp))
-                    OutlinedTextField(
-                        value = tempApiKeyInput,
-                        onValueChange = { tempApiKeyInput = it },
-                        label = { Text("Gemini API Keys (Nhập 1 hoặc nhiều key)") },
-                        placeholder = { Text("AIzaSyKey1...\nAIzaSyKey2...\nAIzaSyKey3...") },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .heightIn(min = 100.dp)
-                            .testTag("input_api_key_dialog"),
-                        singleLine = false,
-                        maxLines = 5,
-                        shape = RoundedCornerShape(10.dp)
-                    )
+                    // 2. Model Selection
+                    item {
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "2. Chọn mô hình (${if (dialogProvider == com.example.util.AiProvider.GROQ) "Groq" else "Gemini"}):",
+                            fontSize = 12.5.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Spacer(modifier = Modifier.height(6.dp))
+
+                        val modelsForProvider = com.example.util.AiConfigHelper.AVAILABLE_MODELS.filter { it.provider == dialogProvider }
+                        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            modelsForProvider.forEach { modelInfo ->
+                                val isSelected = dialogModel == modelInfo.id
+                                Surface(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clip(RoundedCornerShape(10.dp))
+                                        .clickable { dialogModel = modelInfo.id },
+                                    shape = RoundedCornerShape(10.dp),
+                                    color = if (isSelected) {
+                                        MaterialTheme.colorScheme.primary.copy(alpha = 0.08f)
+                                    } else {
+                                        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.25f)
+                                    },
+                                    border = androidx.compose.foundation.BorderStroke(
+                                        if (isSelected) 1.2.dp else 0.5.dp,
+                                        if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)
+                                    )
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        RadioButton(
+                                            selected = isSelected,
+                                            onClick = { dialogModel = modelInfo.id },
+                                            modifier = Modifier.size(20.dp),
+                                            colors = RadioButtonDefaults.colors(selectedColor = MaterialTheme.colorScheme.primary)
+                                        )
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Column(modifier = Modifier.weight(1f)) {
+                                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                                Text(
+                                                    text = modelInfo.displayName,
+                                                    fontSize = 12.sp,
+                                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.SemiBold,
+                                                    color = MaterialTheme.colorScheme.onSurface
+                                                )
+                                                if (modelInfo.isRecommended) {
+                                                    Spacer(modifier = Modifier.width(6.dp))
+                                                    Surface(
+                                                        shape = RoundedCornerShape(4.dp),
+                                                        color = Color(0xFF10B981).copy(alpha = 0.15f)
+                                                    ) {
+                                                        Text(
+                                                            text = "Khuyên dùng",
+                                                            fontSize = 9.sp,
+                                                            fontWeight = FontWeight.Bold,
+                                                            color = Color(0xFF047857),
+                                                            modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
+                                                        )
+                                                    }
+                                                }
+                                            }
+                                            Text(
+                                                text = modelInfo.description,
+                                                fontSize = 10.5.sp,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                lineHeight = 14.sp
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // 3. API Key status & input
+                    item {
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "3. Khóa API (${if (dialogProvider == com.example.util.AiProvider.GROQ) "Groq Key" else "Gemini Key"}):",
+                            fontSize = 12.5.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+
+                        // Key Status pill
+                        if (keyInfos.isNotEmpty()) {
+                            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                keyInfos.forEachIndexed { idx, info ->
+                                    Surface(
+                                        shape = RoundedCornerShape(6.dp),
+                                        color = if (info.isRateLimited) Color(0xFFFEF2F2) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
+                                        modifier = Modifier.fillMaxWidth()
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.SpaceBetween
+                                        ) {
+                                            Text(
+                                                text = "Key #${idx + 1}: ${info.maskedKey}",
+                                                fontSize = 11.sp,
+                                                fontWeight = FontWeight.Medium
+                                            )
+                                            Text(
+                                                text = if (info.isRateLimited) "🔴 Rate Limit" else "🟢 Sẵn sàng",
+                                                fontSize = 10.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = if (info.isRateLimited) Color(0xFFDC2626) else Color(0xFF059669)
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                            Spacer(modifier = Modifier.height(6.dp))
+                        }
+
+                        OutlinedTextField(
+                            value = dialogKeyInput,
+                            onValueChange = { dialogKeyInput = it },
+                            label = {
+                                Text(if (dialogProvider == com.example.util.AiProvider.GROQ) "Nhập Groq API Key (gsk_...)" else "Nhập Gemini API Key (AIzaSy...)")
+                            },
+                            placeholder = {
+                                Text(if (dialogProvider == com.example.util.AiProvider.GROQ) "gsk_abcd1234...\n(Hỗ trợ nhiều key cách nhau bằng dòng mới)" else "AIzaSy...\n(Hỗ trợ nhiều key)")
+                            },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .heightIn(min = 85.dp)
+                                .testTag("input_api_key_dialog"),
+                            singleLine = false,
+                            maxLines = 4,
+                            shape = RoundedCornerShape(10.dp)
+                        )
+
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Surface(
+                            shape = RoundedCornerShape(10.dp),
+                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
+                            border = androidx.compose.foundation.BorderStroke(
+                                1.dp,
+                                MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)
+                            ),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(10.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(
+                                        Icons.Default.Info,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(
+                                        text = "Chi tiết Model & Cơ chế tự động khi có sự cố:",
+                                        fontSize = 11.5.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                }
+
+                                // Gemini Card
+                                Surface(
+                                    shape = RoundedCornerShape(8.dp),
+                                    color = Color(0xFFEFF6FF),
+                                    border = androidx.compose.foundation.BorderStroke(
+                                        if (dialogProvider == com.example.util.AiProvider.GEMINI) 1.2.dp else 0.5.dp,
+                                        if (dialogProvider == com.example.util.AiProvider.GEMINI) Color(0xFF3B82F6) else Color(0xFFBFDBFE)
+                                    ),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Column(
+                                        modifier = Modifier.padding(8.dp),
+                                        verticalArrangement = Arrangement.spacedBy(3.dp)
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Text(
+                                                text = "🌐 Google Gemini",
+                                                fontSize = 11.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = Color(0xFF1D4ED8)
+                                            )
+                                            if (dialogProvider == com.example.util.AiProvider.GEMINI) {
+                                                Surface(
+                                                    shape = RoundedCornerShape(4.dp),
+                                                    color = Color(0xFF3B82F6).copy(alpha = 0.15f)
+                                                ) {
+                                                    Text(
+                                                        text = "Đang chọn",
+                                                        fontSize = 9.sp,
+                                                        fontWeight = FontWeight.Bold,
+                                                        color = Color(0xFF1D4ED8),
+                                                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
+                                                    )
+                                                }
+                                            }
+                                        }
+                                        Text(
+                                            text = "• Mặc định: gemini-3.5-flash-lite (Gemini 3.5 Flash Lite)",
+                                            fontSize = 10.5.sp,
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = Color(0xFF1E3A8A)
+                                        )
+                                        Text(
+                                            text = "• Khi có sự cố (404 chưa mở model): Tự động chuyển tiếp sang gemini-3.1-flash-lite-preview",
+                                            fontSize = 10.sp,
+                                            color = Color(0xFF1E40AF),
+                                            lineHeight = 13.sp
+                                        )
+                                        Text(
+                                            text = "• Khi có sự cố (503 cao tải / 429 quá lượt): Tự động chuyển tiếp tức thì sang Groq Llama 3.3 70B (nếu có Groq Key) hoặc đổi sang Gemini 3.1 Flash Lite",
+                                            fontSize = 10.sp,
+                                            color = Color(0xFF1E40AF),
+                                            lineHeight = 13.sp
+                                        )
+                                        Text(
+                                            text = "👉 Nhận API Key tại: aistudio.google.com",
+                                            fontSize = 10.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = Color(0xFF1D4ED8)
+                                        )
+                                    }
+                                }
+
+                                // Groq Card
+                                Surface(
+                                    shape = RoundedCornerShape(8.dp),
+                                    color = Color(0xFFF0FDF4),
+                                    border = androidx.compose.foundation.BorderStroke(
+                                        if (dialogProvider == com.example.util.AiProvider.GROQ) 1.2.dp else 0.5.dp,
+                                        if (dialogProvider == com.example.util.AiProvider.GROQ) Color(0xFF10B981) else Color(0xFF86EFAC)
+                                    ),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Column(
+                                        modifier = Modifier.padding(8.dp),
+                                        verticalArrangement = Arrangement.spacedBy(3.dp)
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Text(
+                                                text = "⚡ Groq LPU (Grod)",
+                                                fontSize = 11.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = Color(0xFF047857)
+                                            )
+                                            if (dialogProvider == com.example.util.AiProvider.GROQ) {
+                                                Surface(
+                                                    shape = RoundedCornerShape(4.dp),
+                                                    color = Color(0xFF10B981).copy(alpha = 0.15f)
+                                                ) {
+                                                    Text(
+                                                        text = "Đang chọn",
+                                                        fontSize = 9.sp,
+                                                        fontWeight = FontWeight.Bold,
+                                                        color = Color(0xFF047857),
+                                                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
+                                                    )
+                                                }
+                                            }
+                                        }
+                                        Text(
+                                            text = "• Mặc định: Groq Llama 3.3 70B Versatile (llama-3.3-70b-versatile)",
+                                            fontSize = 10.5.sp,
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = Color(0xFF065F46)
+                                        )
+                                        Text(
+                                            text = "• Khi có sự cố (Rate limit / Quá lượt): Tự động xoay vòng danh sách Key dự phòng (Key Rotation) hoặc đổi sang Llama 3.1 8B Instant",
+                                            fontSize = 10.sp,
+                                            color = Color(0xFF166534),
+                                            lineHeight = 13.sp
+                                        )
+                                        Text(
+                                            text = "• Ưu điểm: Tốc độ LPU 300-800 tok/s, miễn phí, không bao giờ bị nghẽn 'Server Overloaded'",
+                                            fontSize = 10.sp,
+                                            color = Color(0xFF166534),
+                                            lineHeight = 13.sp
+                                        )
+                                        Text(
+                                            text = "👉 Nhận Groq Key miễn phí tại: console.groq.com",
+                                            fontSize = 10.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = Color(0xFF15803D)
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
             },
             confirmButton = {
                 Button(
                     onClick = {
-                        val input = tempApiKeyInput.trim()
-                        com.example.util.AiConfigHelper.saveRawKeysInput(context, input)
-                        val effective = com.example.util.AiConfigHelper.getEffectiveApiKey(context)
-                        aiViewModel.setCustomApiKey(effective)
+                        val input = dialogKeyInput.trim()
+                        if (input.isNotBlank()) {
+                            com.example.util.AiConfigHelper.smartSaveKeysInput(context, input)
+                        }
+                        aiViewModel.setProvider(dialogProvider, context)
+                        aiViewModel.setModel(dialogModel, context)
                         showApiKeyDialog = false
-                        val keysCount = com.example.util.AiConfigHelper.getAllConfiguredKeys(context).size
+
+                        val providerName = if (dialogProvider == com.example.util.AiProvider.GROQ) "Groq Cloud" else "Google Gemini"
+                        val modelName = com.example.util.AiConfigHelper.AVAILABLE_MODELS.find { it.id == dialogModel }?.displayName ?: dialogModel
                         Toast.makeText(
                             context,
-                            "Đã lưu thành công $keysCount Gemini API Key (Bật cơ chế tự động xoay key)!",
+                            "Đã kích hoạt $providerName ($modelName)!",
                             Toast.LENGTH_LONG
                         ).show()
                     },
                     shape = RoundedCornerShape(8.dp)
                 ) {
-                    Text("Lưu & Kích hoạt xoay Key")
+                    Text("Áp dụng mô hình")
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showApiKeyDialog = false }) {
-                    Text("Hủy")
+                    Text("Đóng")
                 }
             }
         )

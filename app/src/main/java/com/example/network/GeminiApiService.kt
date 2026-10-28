@@ -29,7 +29,8 @@ data class GeminiContent(
 data class GeminiGenerationConfig(
     @Json(name = "temperature") val temperature: Float? = 0.7f,
     @Json(name = "topP") val topP: Float? = 0.95f,
-    @Json(name = "topK") val topK: Int? = 40
+    @Json(name = "topK") val topK: Int? = 40,
+    @Json(name = "maxOutputTokens") val maxOutputTokens: Int? = 8192
 )
 
 @JsonClass(generateAdapter = true)
@@ -59,8 +60,13 @@ interface GeminiApiService {
     ): GeminiResponse
 
     companion object {
-        const val MODEL_GEMINI_DEFAULT = "gemini-3.1-flash-lite-preview"
+        const val MODEL_GEMINI_DEFAULT = "gemini-3.5-flash-lite"
+        const val MODEL_GEMINI_3_5_FLASH_LITE = "gemini-3.5-flash-lite"
         const val MODEL_GEMINI_3_1_FLASH_LITE = "gemini-3.1-flash-lite-preview"
+        const val MODEL_GEMINI_2_5_FLASH = "gemini-2.5-flash"
+        const val MODEL_GEMINI_2_0_FLASH = "gemini-2.0-flash"
+        const val MODEL_GEMINI_1_5_FLASH = "gemini-1.5-flash"
+        const val MODEL_GEMINI_2_5_FLASH_LITE = "gemini-2.5-flash-lite"
         private const val BASE_URL = "https://generativelanguage.googleapis.com/"
 
         fun create(): GeminiApiService {

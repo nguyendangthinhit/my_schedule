@@ -1,6 +1,11 @@
 package com.example.ui.navigation
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -23,15 +28,22 @@ fun AppNavigation(
         viewModel(factory = ScheduleViewModelFactory(repository))
     },
     navigateTo: String? = null,
-    editEventId: Int? = null
+    editEventId: Int? = null,
+    navigationTrigger: Long = 0L
 ) {
     val navController = rememberNavController()
+    var mainScreenTab by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf<String?>(null) }
+    var mainTabTrigger by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(0L) }
 
-    androidx.compose.runtime.LaunchedEffect(navigateTo, editEventId) {
+    androidx.compose.runtime.LaunchedEffect(navigateTo, editEventId, navigationTrigger) {
         if (navigateTo == "add_event") {
             navController.navigate("add_event")
         } else if (editEventId != null && editEventId != -1) {
             navController.navigate("edit_event/$editEventId")
+        } else if (navigateTo == "home") {
+            navController.popBackStack("main", inclusive = false)
+            mainScreenTab = "home"
+            mainTabTrigger = System.currentTimeMillis()
         }
     }
 
@@ -48,6 +60,8 @@ fun AppNavigation(
         composable("main") {
             MainScreen(
                 viewModel = viewModel,
+                targetTab = mainScreenTab,
+                tabTrigger = mainTabTrigger,
                 onNavigateToAddEvent = {
                     navController.navigate("add_event")
                 },
