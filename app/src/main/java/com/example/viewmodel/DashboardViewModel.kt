@@ -41,8 +41,8 @@ class DashboardViewModel(
     private val _anchorDate = MutableStateFlow(LocalDate.now())
     val anchorDate: StateFlow<LocalDate> = _anchorDate.asStateFlow()
 
-    private val _selectedCategoryId = MutableStateFlow<Int>(1)
-    val selectedCategoryId: StateFlow<Int> = _selectedCategoryId.asStateFlow()
+    private val _selectedCategoryId = MutableStateFlow<String>(com.example.data.DefaultBoards.BOARD_WORK_ID)
+    val selectedCategoryId: StateFlow<String> = _selectedCategoryId.asStateFlow()
 
     private val dbDataFlow: Flow<DashboardDbData> = combine(
         repository.allBoards,
@@ -90,7 +90,7 @@ class DashboardViewModel(
             val validCatId = if (dbData.boards.any { it.id == catId }) {
                 catId
             } else {
-                dbData.boards.firstOrNull()?.id ?: 1
+                dbData.boards.firstOrNull()?.id ?: com.example.data.DefaultBoards.BOARD_WORK_ID
             }
             val data = repository.calculateCategoryDetail(
                 boards = dbData.boards,
@@ -114,7 +114,7 @@ class DashboardViewModel(
         _selectedCategoryId.value = category.id
     }
 
-    fun selectCategoryId(categoryId: Int) {
+    fun selectCategoryId(categoryId: String) {
         _selectedCategoryId.value = categoryId
     }
 

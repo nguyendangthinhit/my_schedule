@@ -24,17 +24,12 @@ class ScheduleWidgetActionReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         when (intent.action) {
             ACTION_TOGGLE_TASK -> {
-                val eventId = intent.getIntExtra(EXTRA_EVENT_ID, -1)
-                if (eventId != -1 && eventId < 100000) {
+                val eventId = intent.getStringExtra(EXTRA_EVENT_ID) ?: ""
+                if (eventId.isNotBlank() && !eventId.startsWith("holiday_")) {
                     val app = context.applicationContext as MyApplication
                     val todayStr = LocalDate.now().format(DateTimeFormatter.ISO_LOCAL_DATE)
                     CoroutineScope(Dispatchers.IO).launch {
-                        app.repository.toggleCompletion(eventId, todayStr)
-                        // Also update single event isCompleted field directly if needed
-                        val event = app.database.scheduleDao().getEventById(eventId)
-                        if (event != null) {
-                            app.database.scheduleDao().updateEvent(event.copy(isCompleted = !event.isCompleted))
-                        }
+                        app.repository.toggleEventCompletion(eventId, todayStr)
                         WidgetUpdateHelper.updateAllWidgets(context)
                     }
                 }
@@ -47,10 +42,10 @@ class ScheduleWidgetActionReceiver : BroadcastReceiver() {
                 context.startActivity(launchIntent)
             }
             ACTION_VIEW_EVENT -> {
-                val eventId = intent.getIntExtra(EXTRA_EVENT_ID, -1)
+                val eventId = intent.getStringExtra(EXTRA_EVENT_ID) ?: ""
                 val launchIntent = Intent(context, MainActivity::class.java).apply {
                     flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-                    if (eventId != -1 && eventId < 100000) {
+                    if (eventId.isNotBlank() && !eventId.startsWith("holiday_")) {
                         putExtra("EDIT_EVENT_ID", eventId)
                     }
                 }

@@ -1,7 +1,6 @@
 package com.example.data
 
 import android.content.Context
-import androidx.sqlite.db.SupportSQLiteDatabase
 import com.example.data.dao.ScheduleDao
 import com.example.data.entities.BoardEntity
 import com.example.data.entities.EventCompletionEntity
@@ -21,7 +20,7 @@ object SampleDataSeeder {
         events.add(
             EventEntity(
                 title = "Đi chơi ở Hà Nội",
-                boardId = 3, // Đi chơi
+                boardId = DefaultBoards.BOARD_PLAY_ID, // Đi chơi
                 startDate = "2026-08-01",
                 startTime = "08:00",
                 endTime = "23:00",
@@ -33,7 +32,7 @@ object SampleDataSeeder {
         events.add(
             EventEntity(
                 title = "Mua sắm đồ ở KTX",
-                boardId = 1, // Công việc
+                boardId = DefaultBoards.BOARD_WORK_ID, // Công việc
                 startDate = "2026-08-02",
                 startTime = "14:00",
                 endTime = "21:00",
@@ -48,7 +47,7 @@ object SampleDataSeeder {
             events.add(
                 EventEntity(
                     title = "Thực tập tại Samsung R&D Hà Nội",
-                    boardId = 1, // Công việc
+                    boardId = DefaultBoards.BOARD_WORK_ID, // Công việc
                     startDate = date,
                     startTime = "08:30",
                     endTime = "12:00",
@@ -59,7 +58,7 @@ object SampleDataSeeder {
             events.add(
                 EventEntity(
                     title = "Thực tập tại Samsung R&D Hà Nội",
-                    boardId = 1, // Công việc
+                    boardId = DefaultBoards.BOARD_WORK_ID, // Công việc
                     startDate = date,
                     startTime = "13:00",
                     endTime = "17:30",
@@ -70,7 +69,7 @@ object SampleDataSeeder {
             events.add(
                 EventEntity(
                     title = "Học",
-                    boardId = 2, // Học tập
+                    boardId = DefaultBoards.BOARD_STUDY_ID, // Học tập
                     startDate = date,
                     startTime = "20:00",
                     endTime = "21:00",
@@ -83,7 +82,7 @@ object SampleDataSeeder {
         events.add(
             EventEntity(
                 title = "Xem bóng đá Việt Nam - Indonesia",
-                boardId = 3, // Đi chơi
+                boardId = DefaultBoards.BOARD_PLAY_ID, // Đi chơi
                 startDate = "2026-08-03",
                 startTime = "20:30",
                 endTime = "22:30",
@@ -95,7 +94,7 @@ object SampleDataSeeder {
         events.add(
             EventEntity(
                 title = "Đi chơi Hà Nội",
-                boardId = 3, // Đi chơi
+                boardId = DefaultBoards.BOARD_PLAY_ID, // Đi chơi
                 startDate = "2026-08-08",
                 startTime = "08:00",
                 endTime = "23:00",
@@ -110,7 +109,7 @@ object SampleDataSeeder {
             events.add(
                 EventEntity(
                     title = "Thực tập tại Samsung R&D Hà Nội",
-                    boardId = 1, // Công việc
+                    boardId = DefaultBoards.BOARD_WORK_ID, // Công việc
                     startDate = date,
                     startTime = "08:30",
                     endTime = "12:00",
@@ -121,7 +120,7 @@ object SampleDataSeeder {
             events.add(
                 EventEntity(
                     title = "Thực tập tại Samsung R&D Hà Nội",
-                    boardId = 1, // Công việc
+                    boardId = DefaultBoards.BOARD_WORK_ID, // Công việc
                     startDate = date,
                     startTime = "13:00",
                     endTime = "17:30",
@@ -132,7 +131,7 @@ object SampleDataSeeder {
             events.add(
                 EventEntity(
                     title = "Học",
-                    boardId = 2, // Học tập
+                    boardId = DefaultBoards.BOARD_STUDY_ID, // Học tập
                     startDate = date,
                     startTime = "20:00",
                     endTime = "21:00",
@@ -145,7 +144,7 @@ object SampleDataSeeder {
         events.add(
             EventEntity(
                 title = "Đi chơi ở Hà Nội",
-                boardId = 3, // Đi chơi
+                boardId = DefaultBoards.BOARD_PLAY_ID, // Đi chơi
                 startDate = "2026-08-14",
                 startTime = "18:00",
                 endTime = "23:00",
@@ -157,7 +156,7 @@ object SampleDataSeeder {
         events.add(
             EventEntity(
                 title = "Đi chơi Hà Nội",
-                boardId = 3, // Đi chơi
+                boardId = DefaultBoards.BOARD_PLAY_ID, // Đi chơi
                 startDate = "2026-08-15",
                 startTime = "08:00",
                 endTime = "23:00",
@@ -172,7 +171,7 @@ object SampleDataSeeder {
             events.add(
                 EventEntity(
                     title = "Thực tập tại Samsung R&D Hà Nội",
-                    boardId = 1, // Công việc
+                    boardId = DefaultBoards.BOARD_WORK_ID, // Công việc
                     startDate = date,
                     startTime = "08:30",
                     endTime = "12:00",
@@ -183,7 +182,7 @@ object SampleDataSeeder {
             events.add(
                 EventEntity(
                     title = "Thực tập tại Samsung R&D Hà Nội",
-                    boardId = 1, // Công việc
+                    boardId = DefaultBoards.BOARD_WORK_ID, // Công việc
                     startDate = date,
                     startTime = "13:00",
                     endTime = "17:30",
@@ -194,7 +193,7 @@ object SampleDataSeeder {
             events.add(
                 EventEntity(
                     title = "Học",
-                    boardId = 2, // Học tập
+                    boardId = DefaultBoards.BOARD_STUDY_ID, // Học tập
                     startDate = date,
                     startTime = "20:00",
                     endTime = "21:00",
@@ -207,7 +206,7 @@ object SampleDataSeeder {
         events.add(
             EventEntity(
                 title = "Hát Karaoke",
-                boardId = 3, // Đi chơi
+                boardId = DefaultBoards.BOARD_PLAY_ID, // Đi chơi
                 startDate = "2026-08-21",
                 startTime = "21:00",
                 endTime = "23:00",
@@ -219,7 +218,7 @@ object SampleDataSeeder {
         events.add(
             EventEntity(
                 title = "Đi chơi Hà Nội",
-                boardId = 3, // Đi chơi
+                boardId = DefaultBoards.BOARD_PLAY_ID, // Đi chơi
                 startDate = "2026-08-22",
                 startTime = "08:00",
                 endTime = "18:00",
@@ -231,7 +230,7 @@ object SampleDataSeeder {
         events.add(
             EventEntity(
                 title = "Xem bóng đá Việt Nam - Thái Lan",
-                boardId = 3, // Đi chơi
+                boardId = DefaultBoards.BOARD_PLAY_ID, // Đi chơi
                 startDate = "2026-08-22",
                 startTime = "20:00",
                 endTime = "22:00",
@@ -242,33 +241,33 @@ object SampleDataSeeder {
         return events
     }
 
-    suspend fun seedSampleDataIfNeeded(context: Context, dao: ScheduleDao) = withContext(Dispatchers.IO) {
+    suspend fun seedSampleDataIfNeeded(context: Context, repository: EventRepository) = withContext(Dispatchers.IO) {
         // Ensure all 10 default categories exist in SQL boards table
         val defaultBoards = listOf(
-            BoardEntity(id = 1, name = "Công việc", colorHex = "#3B82F6", isVisible = true, sortOrder = 0),
-            BoardEntity(id = 2, name = "Học tập", colorHex = "#10B981", isVisible = true, sortOrder = 1),
-            BoardEntity(id = 3, name = "Đi chơi", colorHex = "#06B6D4", isVisible = true, sortOrder = 2),
-            BoardEntity(id = 4, name = "Cuộc họp", colorHex = "#F59E0B", isVisible = true, sortOrder = 3),
-            BoardEntity(id = 5, name = "Ngày lễ", colorHex = "#EF4444", isVisible = true, sortOrder = 4),
-            BoardEntity(id = 6, name = "Cá nhân", colorHex = "#8B5CF6", isVisible = true, sortOrder = 5),
-            BoardEntity(id = 7, name = "Sức khỏe", colorHex = "#EC4899", isVisible = true, sortOrder = 6),
-            BoardEntity(id = 8, name = "Tài chính", colorHex = "#14B8A6", isVisible = true, sortOrder = 7),
-            BoardEntity(id = 9, name = "Việc cần làm", colorHex = "#6366F1", isVisible = true, sortOrder = 8),
-            BoardEntity(id = 10, name = "Gia đình", colorHex = "#F97316", isVisible = true, sortOrder = 9)
+            BoardEntity(id = DefaultBoards.BOARD_WORK_ID, name = "Công việc", colorHex = "#3B82F6", isVisible = true, sortOrder = 0),
+            BoardEntity(id = DefaultBoards.BOARD_STUDY_ID, name = "Học tập", colorHex = "#10B981", isVisible = true, sortOrder = 1),
+            BoardEntity(id = DefaultBoards.BOARD_PLAY_ID, name = "Đi chơi", colorHex = "#06B6D4", isVisible = true, sortOrder = 2),
+            BoardEntity(id = DefaultBoards.BOARD_MEETING_ID, name = "Cuộc họp", colorHex = "#F59E0B", isVisible = true, sortOrder = 3),
+            BoardEntity(id = DefaultBoards.BOARD_HOLIDAY_ID, name = "Ngày lễ", colorHex = "#EF4444", isVisible = true, sortOrder = 4),
+            BoardEntity(id = DefaultBoards.BOARD_PERSONAL_ID, name = "Cá nhân", colorHex = "#8B5CF6", isVisible = true, sortOrder = 5),
+            BoardEntity(id = DefaultBoards.BOARD_HEALTH_ID, name = "Sức khỏe", colorHex = "#EC4899", isVisible = true, sortOrder = 6),
+            BoardEntity(id = DefaultBoards.BOARD_FINANCE_ID, name = "Tài chính", colorHex = "#14B8A6", isVisible = true, sortOrder = 7),
+            BoardEntity(id = DefaultBoards.BOARD_TASK_ID, name = "Việc cần làm", colorHex = "#6366F1", isVisible = true, sortOrder = 8),
+            BoardEntity(id = DefaultBoards.BOARD_FAMILY_ID, name = "Gia đình", colorHex = "#F97316", isVisible = true, sortOrder = 9)
         )
-        val currentBoards = try { dao.getAllBoardsList() } catch (e: Exception) { emptyList() }
+        val currentBoards = try { repository.getAllBoardsList() } catch (e: Exception) { emptyList() }
         val currentNames = currentBoards.map { it.name.trim().lowercase() }.toSet()
         val currentIds = currentBoards.map { it.id }.toSet()
         for (board in defaultBoards) {
             if (!currentNames.contains(board.name.trim().lowercase()) && !currentIds.contains(board.id)) {
-                dao.insertBoard(board)
+                repository.insertBoard(board)
             }
         }
 
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         val alreadySeeded = prefs.getBoolean(KEY_SEEDED_AUG_2026_V1, false)
 
-        val existingEvents = dao.getAllEventsList()
+        val existingEvents = repository.getAllEventsList()
 
         // Deduplicate any existing duplicate events (e.g. from previous double initialization)
         if (existingEvents.isNotEmpty()) {
@@ -276,7 +275,7 @@ object SampleDataSeeder {
             for ((_, group) in groups) {
                 if (group.size > 1) {
                     for (duplicate in group.drop(1)) {
-                        dao.deleteEventById(duplicate.id)
+                        repository.deleteEventById(duplicate.id)
                     }
                 }
             }
@@ -285,16 +284,9 @@ object SampleDataSeeder {
         if (!alreadySeeded && existingEvents.isEmpty()) {
             val sampleEvents = getSampleEvents()
             for (event in sampleEvents) {
-                val id = dao.insertEvent(event).toInt()
+                repository.insertEvent(event, emptyList())
                 if (event.isCompleted) {
-                    dao.insertCompletion(
-                        EventCompletionEntity(
-                            eventId = id,
-                            occurrenceDate = event.startDate,
-                            isCompleted = true,
-                            completedAt = System.currentTimeMillis()
-                        )
-                    )
+                    repository.setCompletion(event.id, event.startDate, true)
                 }
             }
         }

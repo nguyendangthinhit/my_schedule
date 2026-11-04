@@ -42,7 +42,7 @@ import java.time.LocalTime
 @Composable
 fun AddEventScreen(
     viewModel: ScheduleViewModel,
-    eventId: Int? = null,
+    eventId: String? = null,
     onBack: () -> Unit
 ) {
     val context = LocalContext.current

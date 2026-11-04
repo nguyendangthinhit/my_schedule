@@ -123,7 +123,7 @@ fun CategoryDetailScreen(
 @Composable
 fun CategoryHorizontalSelector(
     categories: List<DashboardCategory>,
-    selectedCategoryId: Int,
+    selectedCategoryId: String,
     onSelectCategory: (DashboardCategory) -> Unit
 ) {
     LazyRow(

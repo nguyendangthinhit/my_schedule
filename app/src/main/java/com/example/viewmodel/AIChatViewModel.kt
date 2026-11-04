@@ -252,30 +252,27 @@ class AIChatViewModel(
                     append("   - Nêu số lượng chính xác, liệt kê chi tiết từng buổi học / sự kiện (kèm ngày, thứ, khung giờ và trạng thái hoàn thành).\n")
                     append("   - Trả lời đầy đủ, tự tin, thân thiện và chính xác tuyệt đối theo dữ liệu thực tế.\n\n")
 
-                    append("ĐẶC BIỆT QUAN TRỌNG VỀ TÍNH NĂNG TỰ ĐỘNG ĐIỀN LỊCH TRÌNH:\n")
-                    append("Khi người dùng yêu cầu:\n")
-                    append("- Gợi ý phân bổ thời gian, sắp xếp thời gian biểu\n")
-                    append("- Lập kế hoạch hoặc lịch trình cho ngày hôm nay, ngày mai hoặc các ngày tới\n")
-                    append("- Chia nhỏ công việc, bài học, tập thể dục kèm khung giờ cụ thể\n")
-                    append("- Hoặc người dùng đưa vào một danh sách các việc cần làm (10, 20, 30 việc hoặc nhiều hơn)\n\n")
-                    append("NGUYÊN TẮC BẮT BUỘC KHI XỬ LÝ DANH SÁCH CÔNG VIỆC CỦA NGƯỜI DÙNG:\n")
-                    append("1. BẠN PHẢI LÊN LỊCH ĐẦY ĐỦ 100% TẤT CẢ CÁC CÔNG VIỆC TRONG DANH SÁCH NGƯỜI DÙNG ĐƯA VÀO. TUYỆT ĐỐI KHÔNG ĐƯỢC TỰ Ý BỎ BỚT, KHÔNG LƯỢC BỚT, KHÔNG CHỈ CHỌN 1 VÀI VIỆC TIÊU BIỂU! Nếu người dùng đưa N việc thì mảng JSON BẮT BUỘC phải có đủ N phần tử.\n")
-                    append("2. Nếu trong 1 ngày không đủ thời gian để hoàn thành tất cả công việc (để tránh kiệt sức), hãy thông minh phân bổ hợp lý các công việc sang các ngày tiếp theo ($todayStr, $tomorrowStr, ngày kế tiếp với trường 'date' tương ứng), nhưng MỌI CÔNG VIỆC BẮT BUỘC PHẢI ĐƯỢC XẾP LỊCH ĐẦY ĐỦ.\n")
-                    append("3. Hãy đưa ra phần nhận xét ngắn gọn và LUÔN LUÔN kèm theo một khối JSON danh sách sự kiện ở cuối câu trả lời theo đúng định dạng sau:\n")
+                    append("ĐẶC BIỆT QUAN TRỌNG VỀ TÍNH NĂNG TỰ ĐỘNG LÊN LỊCH TRÌNH VÀ BÓC TÁCH CÔNG VIỆC:\n")
+                    append("Khi người dùng đưa vào một danh sách các môn học, buổi học, công việc, đồ án hoặc kế hoạch dài hạn (kể cả 20, 30, 50 sự kiện kéo dài cả tháng):\n\n")
+                    append("NGUYÊN TẮC BẮT BUỘC:\n")
+                    append("1. BẠN BẮT BUỘC PHẢI LÊN LỊCH ĐẦY ĐỦ 100% TẤT CẢ CÁC SỰ KIỆN TỪ ĐẦU ĐẾN CUỐI. TUYỆT ĐỐI KHÔNG ĐƯỢC TỰ Ý DỪNG Ở TUẦN ĐẦU TIÊN! TUYỆT ĐỐI KHÔNG ĐƯỢC BỎ BỚT BẤT KỲ MÔN NÀO!\n")
+                    append("2. TUYỆT ĐỐI KHÔNG BAO GIỜ viết những câu bào chữa như '(Lưu ý: Do giới hạn hiển thị, mình chỉ nhập tuần đầu tiên...)' hay yêu cầu người dùng yêu cầu tiếp tuần sau. Hệ thống có khả năng nạp không giới hạn số lượng sự kiện trong một lần, hãy trả về toàn bộ tất cả các tuần (từ ngày đầu đến ngày cuối cùng người dùng cung cấp) trong CÙNG MỘT KHỐI JSON DUY NHẤT.\n")
+                    append("3. TUYỆT ĐỐI KHÔNG IN MÃ JSON THÔ HAY CÁC DÒNG CẤU TRÚC JSON (như {\"title\": ...}) RA NỘI DUNG TRÒ CHUYỆN. Người dùng không muốn nhìn thấy văn bản JSON thô. Ứng dụng đã có sẵn giao diện thẻ sự kiện tích chọn riêng rất đẹp.\n")
+                    append("   Vì vậy, trong phần văn bản trả lời, bạn CHỈ CẦN đưa ra lời chào và nhận xét/động viên ngắn gọn (1-2 câu). Sau đó, đặt TOÀN BỘ mảng dữ liệu sự kiện vào trong đúng MỘT khối duy nhất dạng:\n")
                     append("```schedule_json\n")
                     append("[\n")
                     append("  {\n")
-                    append("    \"title\": \"Tên công việc hoặc hoạt động ngắn gọn\",\n")
-                    append("    \"date\": \"$todayStr\",\n")
-                    append("    \"startTime\": \"08:00\",\n")
-                    append("    \"endTime\": \"09:30\",\n")
-                    append("    \"category\": \"WORK\",\n")
-                    append("    \"reminderNote\": \"Ghi chú nhắc nhở nếu có\"\n")
+                    append("    \"title\": \"Tên môn học hoặc công việc ngắn gọn\",\n")
+                    append("    \"date\": \"2026-11-02\",\n")
+                    append("    \"startTime\": \"09:15\",\n")
+                    append("    \"endTime\": \"11:15\",\n")
+                    append("    \"category\": \"STUDY\",\n")
+                    append("    \"reminderNote\": \"Phòng học, địa điểm hoặc ghi chú nếu có\"\n")
                     append("  }\n")
                     append("]\n")
                     append("```\n")
-                    append("Trong đó: 'category' chỉ nhận 1 trong 4 giá trị: 'WORK' (Công việc), 'STUDY' (Học tập), 'PLAY' (Giải trí/Thể thao/Đi chơi), 'MEETING' (Cuộc họp).\n")
-                    append("'date' định dạng 'yyyy-MM-dd' (nếu là hôm nay dùng '$todayStr', nếu ngày mai dùng '$tomorrowStr').\n\n")
+                    append("4. Khi người dùng cung cấp ngày tháng dạng '02/11', '03/11'... hoặc 'Thứ 2 (02/11)', hãy tự động suy luận đúng năm hiện tại (${today.year}) và định dạng chuẩn 'yyyy-MM-dd' (ví dụ: '${today.year}-11-02').\n")
+                    append("5. Trường 'category' chỉ nhận 1 trong 4 giá trị: 'STUDY' (Học tập/Đồ án), 'WORK' (Công việc), 'PLAY' (Giải trí/Thể thao), 'MEETING' (Họp hành).\n\n")
 
                     append(dbScheduleContext)
                     append("\n")
@@ -514,7 +511,7 @@ class AIChatViewModel(
             val endIdx = rawText.lastIndexOf(']')
             if (startIdx != -1 && endIdx != -1 && endIdx > startIdx) {
                 val candidate = rawText.substring(startIdx, endIdx + 1)
-                if (candidate.contains("\"title\"") && candidate.contains("\"startTime\"")) {
+                if (candidate.contains("\"title\"") && (candidate.contains("\"startTime\"") || candidate.contains("\"date\""))) {
                     jsonArrayStr = candidate
                     cleanedText = (rawText.substring(0, startIdx) + rawText.substring(endIdx + 1)).trim()
                 }
@@ -547,11 +544,37 @@ class AIChatViewModel(
                 for (i in 0 until jsonArr.length()) {
                     val obj = jsonArr.optJSONObject(i) ?: continue
                     val title = obj.optString("title", "Công việc ${i + 1}")
-                    val dateStr = obj.optString("date", defaultDate.toString())
+                    val dateStr = obj.optString("date", defaultDate.toString()).trim()
                     val parsedDate = try {
                         LocalDate.parse(dateStr)
                     } catch (e: Exception) {
-                        defaultDate
+                        try {
+                            val currentYear = LocalDate.now().year
+                            if (dateStr.contains("/")) {
+                                val parts = dateStr.split("/")
+                                if (parts.size == 2) {
+                                    val day = parts[0].filter { it.isDigit() }.toInt()
+                                    val month = parts[1].filter { it.isDigit() }.toInt()
+                                    LocalDate.of(currentYear, month, day)
+                                } else if (parts.size == 3) {
+                                    val day = parts[0].filter { it.isDigit() }.toInt()
+                                    val month = parts[1].filter { it.isDigit() }.toInt()
+                                    val year = parts[2].filter { it.isDigit() }.toInt().let { if (it < 100) 2000 + it else it }
+                                    LocalDate.of(year, month, day)
+                                } else defaultDate
+                            } else if (dateStr.contains("-")) {
+                                val parts = dateStr.split("-")
+                                if (parts.size == 3) {
+                                    if (parts[0].length == 4) {
+                                        LocalDate.of(parts[0].toInt(), parts[1].toInt(), parts[2].toInt())
+                                    } else {
+                                        LocalDate.of(parts[2].toInt(), parts[1].toInt(), parts[0].toInt())
+                                    }
+                                } else defaultDate
+                            } else defaultDate
+                        } catch (_: Exception) {
+                            defaultDate
+                        }
                     }
 
                     val startTimeStr = obj.optString("startTime", "08:00")
@@ -559,7 +582,7 @@ class AIChatViewModel(
                     val parsedStartTime = parseTime(startTimeStr, LocalTime.of((8 + i * 2) % 24, 0))
                     val parsedEndTime = parseTime(endTimeStr, parsedStartTime.plusMinutes(60))
 
-                    val category = obj.optString("category", "WORK")
+                    val category = obj.optString("category", "STUDY")
                     val reminderNote = obj.optString("reminderNote", "Gợi ý bởi My Schedule AI")
 
                     suggestedList.add(
@@ -601,7 +624,26 @@ class AIChatViewModel(
             }
         }
 
-        return Pair(cleanedText.ifBlank { "Dưới đây là lịch trình phân bổ thời gian được đề xuất cho bạn:" }, suggestedList)
+        // Clean up any remaining JSON tags, backticks or boilerplate disclaimers from the text
+        cleanedText = cleanedText
+            .replace("schedule_json", "", ignoreCase = true)
+            .replace("```", "")
+            .replace(Regex("(?i)\\(?\\s*Lưu ý:?\\s*Do giới hạn hiển thị[\\s\\S]*?\\)?"), "")
+            .replace(Regex("(?i)Dưới đây là danh sách các sự kiện đã được cập nhật[\\s\\S]*?:?"), "")
+            .replace(Regex("\\[\\s*\\{[\\s\\S]*?\\}\\s*\\]"), "")
+            .trim()
+
+        val finalText = if (suggestedList.isNotEmpty()) {
+            if (cleanedText.isBlank() || cleanedText.length < 15) {
+                "Tôi đã lên lịch trình chi tiết cho tất cả ${suggestedList.size} sự kiện/buổi học của bạn bên dưới. Bạn có thể kiểm tra từng sự kiện, tích chọn và nhấn nút 'AI thêm vào lịch trình' để lưu ngay vào ứng dụng nhé!"
+            } else {
+                cleanedText
+            }
+        } else {
+            cleanedText.ifBlank { "Dưới đây là thông tin lịch trình cho bạn:" }
+        }
+
+        return Pair(finalText, suggestedList)
     }
 
     private fun parseTime(timeStr: String, defaultTime: LocalTime): LocalTime {

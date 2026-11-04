@@ -58,7 +58,7 @@ enum class CalendarViewMode(val title: String) {
 fun CalendarScreen(
     viewModel: ScheduleViewModel,
     onNavigateToAddEvent: () -> Unit,
-    onNavigateToEditEvent: (Int) -> Unit = {}
+    onNavigateToEditEvent: (String) -> Unit = {}
 ) {
     val context = LocalContext.current
     val allEvents by viewModel.events.collectAsState()
@@ -2575,8 +2575,8 @@ fun DayEventsPopupDialog(
     weather: com.example.data.entities.WeatherForecastEntity? = null,
     onDismiss: () -> Unit,
     onAddNewEvent: () -> Unit,
-    onEditEvent: (Int) -> Unit,
-    onDeleteEvent: (Int) -> Unit,
+    onEditEvent: (String) -> Unit,
+    onDeleteEvent: (String) -> Unit,
     onToggleCompletion: (Event) -> Unit
 ) {
     val lunar = remember(date) { LunarCalendarHelper.convertSolarToLunar(date) }

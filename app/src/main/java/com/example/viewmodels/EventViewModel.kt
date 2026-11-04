@@ -125,7 +125,7 @@ class EventViewModel(private val repository: EventRepository) : ViewModel() {
         }
     }
 
-    fun toggleCompletion(eventId: Int, date: String) {
+    fun toggleCompletion(eventId: String, date: String) {
         viewModelScope.launch {
             repository.toggleCompletion(eventId, date)
         }

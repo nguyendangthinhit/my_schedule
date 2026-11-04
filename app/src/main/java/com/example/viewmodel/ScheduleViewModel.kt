@@ -6,6 +6,7 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.example.data.DefaultBoards
 import com.example.data.EventRepository
 import com.example.data.entities.BoardEntity
 import com.example.data.entities.EventEntity
@@ -23,6 +24,7 @@ import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
+import java.util.UUID
 
 class ScheduleViewModel(private val repository: EventRepository) : ViewModel() {
 
@@ -139,7 +141,7 @@ class ScheduleViewModel(private val repository: EventRepository) : ViewModel() {
             } catch (e: Exception) {
                 LocalDate.now()
             }
-            val eventId = if (holiday.id > 0) 100000 + holiday.id else ((holiday.date.hashCode() xor holiday.name.hashCode()) and 0x7FFFFFFF)
+            val eventId = if (holiday.id > 0) "holiday_${holiday.id}" else "holiday_${holiday.date}_${(holiday.name.hashCode() and 0x7FFFFFFF)}"
             Event(
                 id = eventId,
                 title = " ${holiday.name}",
@@ -233,13 +235,17 @@ class ScheduleViewModel(private val repository: EventRepository) : ViewModel() {
     }
 
     fun toggleEventCompletion(event: Event, context: Context? = null) {
-        // If it's a holiday event, we don't necessarily update DB user event, or we can toggle
+        // If it's a holiday event, skip
         if (event.category.id == EventCategory.HOLIDAY.id) return
 
         val newCompleted = !event.isCompleted
         viewModelScope.launch {
             repository.updateEvent(
-                event.toEntity().copy(isCompleted = newCompleted),
+                event.toEntity().copy(
+                    isCompleted = newCompleted,
+                    updatedAt = System.currentTimeMillis(),
+                    dirty = true
+                ),
                 if (event.hasReminder) listOf(ReminderEntity(eventId = event.id, remindBeforeMinutes = event.reminderTimeOffsetMins)) else emptyList()
             )
             val dateStr = event.startTime.toLocalDate().toString()
@@ -265,7 +271,7 @@ class ScheduleViewModel(private val repository: EventRepository) : ViewModel() {
     fun addEvent(event: Event, context: Context? = null) {
         viewModelScope.launch {
             val reminders = if (event.hasReminder) {
-                listOf(ReminderEntity(eventId = 0, remindBeforeMinutes = event.reminderTimeOffsetMins))
+                listOf(ReminderEntity(eventId = event.id, remindBeforeMinutes = event.reminderTimeOffsetMins))
             } else emptyList()
             val newId = repository.insertEvent(event.toEntity(), reminders)
             if (context != null) {
@@ -288,7 +294,7 @@ class ScheduleViewModel(private val repository: EventRepository) : ViewModel() {
         viewModelScope.launch {
             events.forEach { event ->
                 val reminders = if (event.hasReminder) {
-                    listOf(ReminderEntity(eventId = 0, remindBeforeMinutes = event.reminderTimeOffsetMins))
+                    listOf(ReminderEntity(eventId = event.id, remindBeforeMinutes = event.reminderTimeOffsetMins))
                 } else emptyList()
                 val newId = repository.insertEvent(event.toEntity(), reminders)
                 if (context != null && event.hasReminder) {
@@ -315,30 +321,18 @@ class ScheduleViewModel(private val repository: EventRepository) : ViewModel() {
             } else emptyList()
             repository.updateEvent(updatedEvent.toEntity(), reminders)
             if (context != null) {
-                com.example.widget.WidgetUpdateHelper.updateAllWidgets(context)
-                NotificationHelper.cancelEventReminder(context, updatedEvent.id)
-                if (updatedEvent.hasReminder && !updatedEvent.isCompleted) {
-                    NotificationHelper.scheduleEventReminder(
-                        context = context,
-                        eventId = updatedEvent.id,
-                        title = updatedEvent.title,
-                        note = updatedEvent.reminderNote,
-                        startTime = updatedEvent.startTime,
-                        offsetMinutes = updatedEvent.reminderTimeOffsetMins
-                    )
-                }
+                NotificationHelper.rescheduleAllAlarmsAndRefreshWidgets(context, repository)
             }
         }
     }
 
-    fun deleteEvent(eventId: Int, context: Context? = null) {
+    fun deleteEvent(eventId: String, context: Context? = null) {
         viewModelScope.launch {
             val event = events.value.find { it.id == eventId }
             if (event != null && event.category.id != EventCategory.HOLIDAY.id) {
                 repository.deleteEvent(event.toEntity())
                 if (context != null) {
-                    com.example.widget.WidgetUpdateHelper.updateAllWidgets(context)
-                    NotificationHelper.cancelEventReminder(context, eventId)
+                    NotificationHelper.rescheduleAllAlarmsAndRefreshWidgets(context, repository)
                 }
             }
         }
@@ -346,6 +340,7 @@ class ScheduleViewModel(private val repository: EventRepository) : ViewModel() {
 
     fun addCategory(title: String, color: Color, bgColor: Color): EventCategory? {
         val newCategory = EventCategory(
+            id = UUID.randomUUID().toString(),
             title = title.trim(),
             color = color,
             bgColor = bgColor
@@ -356,17 +351,20 @@ class ScheduleViewModel(private val repository: EventRepository) : ViewModel() {
         return newCategory
     }
 
-    fun deleteCategory(categoryId: Int) {
-        if (categoryId == 5) return // Protect locked holiday category
+    fun deleteCategory(categoryId: String, context: Context? = null) {
+        if (categoryId == DefaultBoards.BOARD_HOLIDAY_ID) return // Protect locked holiday category
         viewModelScope.launch {
             val category = categories.value.find { it.id == categoryId }
             if (category != null && !category.isLocked) {
                 repository.deleteBoard(category.toEntity())
+                if (context != null) {
+                    NotificationHelper.rescheduleAllAlarmsAndRefreshWidgets(context, repository)
+                }
             }
         }
     }
 
-    fun deleteEvents(eventIds: Collection<Int>) {
+    fun deleteEvents(eventIds: Collection<String>, context: Context? = null) {
         viewModelScope.launch {
             eventIds.forEach { id ->
                 val event = events.value.find { it.id == id }
@@ -374,12 +372,15 @@ class ScheduleViewModel(private val repository: EventRepository) : ViewModel() {
                     repository.deleteEvent(event.toEntity())
                 }
             }
+            if (context != null) {
+                NotificationHelper.rescheduleAllAlarmsAndRefreshWidgets(context, repository)
+            }
         }
     }
 
     // Mappers
     private fun BoardEntity.toUiModel(): EventCategory {
-        val isLockedCat = id == 5 || name.equals("Ngày lễ", ignoreCase = true) ||
+        val isLockedCat = id == DefaultBoards.BOARD_HOLIDAY_ID || name.equals("Ngày lễ", ignoreCase = true) ||
                 colorHex.equals("#DC2626", ignoreCase = true) || colorHex.equals("#EF4444", ignoreCase = true)
         return EventCategory(
             id = id,
@@ -399,9 +400,11 @@ class ScheduleViewModel(private val repository: EventRepository) : ViewModel() {
     }
 
     private fun EventCategory.toEntity() = BoardEntity(
-        id = id,
+        id = if (id.isNotBlank()) id else UUID.randomUUID().toString(),
         name = title,
-        colorHex = String.format("#%06X", (0xFFFFFF and color.toArgb()))
+        colorHex = String.format("#%06X", (0xFFFFFF and color.toArgb())),
+        updatedAt = System.currentTimeMillis(),
+        dirty = true
     )
 
     private fun EventEntity.toUiModel(category: EventCategory) = Event(
@@ -424,7 +427,7 @@ class ScheduleViewModel(private val repository: EventRepository) : ViewModel() {
     )
 
     private fun Event.toEntity() = EventEntity(
-        id = id,
+        id = if (id.isNotBlank()) id else UUID.randomUUID().toString(),
         title = title,
         description = reminderNote,
         boardId = category.id,
@@ -432,7 +435,9 @@ class ScheduleViewModel(private val repository: EventRepository) : ViewModel() {
         startTime = startTime.format(DateTimeFormatter.ISO_LOCAL_TIME).substring(0, 5),
         endTime = endTime.format(DateTimeFormatter.ISO_LOCAL_TIME).substring(0, 5),
         isCompleted = isCompleted,
-        hasReminder = hasReminder
+        hasReminder = hasReminder,
+        updatedAt = System.currentTimeMillis(),
+        dirty = true
     )
 }
 

@@ -18,11 +18,12 @@ import kotlinx.coroutines.withContext
 import java.io.File
 import java.time.LocalDate
 
-class DashboardRepository(
+class DashboardRepository internal constructor(
     private val context: Context,
-    private val scheduleDao: ScheduleDao = AppDatabase.getDatabase(context).scheduleDao(),
+    private val scheduleDao: ScheduleDao,
     private val analyticsEngine: AnalyticsEngine = AnalyticsEngine()
 ) {
+    constructor(context: Context) : this(context, AppDatabase.getDatabase(context).scheduleDao())
     private val moshi: Moshi = Moshi.Builder().build()
     private val exportAdapter = moshi.adapter(AiDashboardExportData::class.java).indent("  ")
     private val aiExportFileName = "ai_dashboard_analytics.json"
@@ -35,9 +36,9 @@ class DashboardRepository(
     val categoriesFlow: Flow<List<DashboardCategory>> = scheduleDao.getAllBoards().map { boards ->
         if (boards.isEmpty()) {
             listOf(
-                DashboardCategory(1, "Công việc", "#4285F4"),
-                DashboardCategory(2, "Học tập", "#34A853"),
-                DashboardCategory(3, "Đi chơi", "#E91E63")
+                DashboardCategory(DefaultBoards.BOARD_WORK_ID, "Công việc", "#4285F4"),
+                DashboardCategory(DefaultBoards.BOARD_STUDY_ID, "Học tập", "#34A853"),
+                DashboardCategory(DefaultBoards.BOARD_PLAY_ID, "Đi chơi", "#E91E63")
             )
         } else {
             boards.map { board ->
@@ -89,7 +90,7 @@ class DashboardRepository(
         events: List<EventEntity>,
         completions: List<EventCompletionEntity>,
         holidays: List<HolidayEntity>,
-        categoryId: Int,
+        categoryId: String,
         anchorDate: LocalDate = LocalDate.now()
     ): CategoryDetailData {
         return analyticsEngine.calculateCategoryDetailFromDatabase(
@@ -131,7 +132,7 @@ class DashboardRepository(
      * Get detailed category metrics calculated from database entities
      */
     suspend fun getCategoryDetailData(
-        categoryId: Int,
+        categoryId: String,
         anchorDate: LocalDate = LocalDate.now()
     ): CategoryDetailData = withContext(Dispatchers.IO) {
         val boards = try { scheduleDao.getAllBoards().first() } catch (e: Exception) { emptyList() }
@@ -156,9 +157,9 @@ class DashboardRepository(
         val boards = try { scheduleDao.getAllBoards().first() } catch (e: Exception) { emptyList() }
         if (boards.isEmpty()) {
             listOf(
-                DashboardCategory(1, "Công việc", "#4285F4"),
-                DashboardCategory(2, "Học tập", "#34A853"),
-                DashboardCategory(3, "Đi chơi", "#E91E63")
+                DashboardCategory(DefaultBoards.BOARD_WORK_ID, "Công việc", "#4285F4"),
+                DashboardCategory(DefaultBoards.BOARD_STUDY_ID, "Học tập", "#34A853"),
+                DashboardCategory(DefaultBoards.BOARD_PLAY_ID, "Đi chơi", "#E91E63")
             )
         } else {
             boards.map { board ->

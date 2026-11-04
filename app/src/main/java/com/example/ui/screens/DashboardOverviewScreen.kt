@@ -496,7 +496,7 @@ fun DashboardOverviewContent(
                         )
                         val defaultCat = categories.firstOrNull()
                             ?: data.categoryProgressList.firstOrNull()?.category
-                            ?: DashboardCategory(1, "Công việc", "#4285F4")
+                            ?: DashboardCategory(com.example.data.DefaultBoards.BOARD_WORK_ID, "Công việc", "#4285F4")
                         Row(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(8.dp))

@@ -1,6 +1,7 @@
 package com.example.models
 
 import androidx.compose.ui.graphics.Color
+import com.example.data.DefaultBoards
 import com.example.ui.theme.CategoryHoliday
 import com.example.ui.theme.CategoryHolidayBg
 import com.example.ui.theme.CategoryMeeting
@@ -17,7 +18,7 @@ import java.time.LocalTime
 import java.util.UUID
 
 data class EventCategory(
-    val id: Int = 0,
+    val id: String = "",
     val title: String,
     val color: Color,
     val bgColor: Color,
@@ -32,62 +33,62 @@ data class EventCategory(
 
     companion object {
         val WORK = EventCategory(
-            id = 1,
+            id = DefaultBoards.BOARD_WORK_ID,
             title = "Công việc",
             color = CategoryWork,
             bgColor = CategoryWorkBg
         )
         val STUDY = EventCategory(
-            id = 2,
+            id = DefaultBoards.BOARD_STUDY_ID,
             title = "Học tập",
             color = CategoryStudy,
             bgColor = CategoryStudyBg
         )
         val PLAY = EventCategory(
-            id = 3,
+            id = DefaultBoards.BOARD_PLAY_ID,
             title = "Đi chơi",
             color = CategoryPlay,
             bgColor = CategoryPlayBg
         )
         val MEETING = EventCategory(
-            id = 4,
+            id = DefaultBoards.BOARD_MEETING_ID,
             title = "Cuộc họp",
             color = CategoryMeeting,
             bgColor = CategoryMeetingBg
         )
         val HOLIDAY = EventCategory(
-            id = 5,
+            id = DefaultBoards.BOARD_HOLIDAY_ID,
             title = "Ngày lễ",
             color = CategoryHoliday,
             bgColor = CategoryHolidayBg,
             isLocked = true
         )
         val PERSONAL = EventCategory(
-            id = 6,
+            id = DefaultBoards.BOARD_PERSONAL_ID,
             title = "Cá nhân",
             color = Color(0xFF8B5CF6),
             bgColor = Color(0xFFF5F3FF)
         )
         val HEALTH = EventCategory(
-            id = 7,
+            id = DefaultBoards.BOARD_HEALTH_ID,
             title = "Sức khỏe",
             color = Color(0xFFEC4899),
             bgColor = Color(0xFFFDF2F8)
         )
         val FINANCE = EventCategory(
-            id = 8,
+            id = DefaultBoards.BOARD_FINANCE_ID,
             title = "Tài chính",
             color = Color(0xFF14B8A6),
             bgColor = Color(0xFFCCFBF1)
         )
         val TASK = EventCategory(
-            id = 9,
+            id = DefaultBoards.BOARD_TASK_ID,
             title = "Việc cần làm",
             color = Color(0xFF6366F1),
             bgColor = Color(0xFFEEF2FF)
         )
         val FAMILY = EventCategory(
-            id = 10,
+            id = DefaultBoards.BOARD_FAMILY_ID,
             title = "Gia đình",
             color = Color(0xFFF97316),
             bgColor = Color(0xFFFFEDD5)
@@ -98,7 +99,7 @@ data class EventCategory(
             WORK, STUDY, PLAY, MEETING, HOLIDAY, PERSONAL, HEALTH, FINANCE, TASK, FAMILY
         )
 
-        // Color presets available for user-created categories (White, Grays, Blues, Greens, Yellows, Pinks, Purples, etc.)
+        // Color presets available for user-created categories
         val COLOR_PRESETS = listOf(
             CategoryColorPreset("Trắng tinh khôi", Color(0xFFFFFFFF), Color(0xFFF8FAFC)),
             CategoryColorPreset("Trắng xám ngọc", Color(0xFFE2E8F0), Color(0xFFF1F5F9)),
@@ -139,7 +140,7 @@ data class CategoryColorPreset(
 }
 
 data class Event(
-    val id: Int = 0,
+    val id: String = UUID.randomUUID().toString(),
     val title: String,
     val startTime: LocalDateTime,
     val endTime: LocalDateTime,
@@ -153,4 +154,3 @@ data class Event(
     val startHour: Int get() = startTime.hour
     val endHour: Int get() = if (endTime.minute > 0) endTime.hour + 1 else endTime.hour
 }
-

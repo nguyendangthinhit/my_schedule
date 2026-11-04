@@ -12,7 +12,7 @@ enum class PeriodType(val label: String) {
 
 @JsonClass(generateAdapter = true)
 data class DashboardCategory(
-    @Json(name = "id") val id: Int,
+    @Json(name = "id") val id: String,
     @Json(name = "name") val name: String,
     @Json(name = "color_hex") val colorHex: String,
     @Json(name = "icon_emoji") val iconEmoji: String = getEmojiForCategoryName(name)
@@ -88,7 +88,7 @@ enum class DashboardCategoryType(
     HEALTH("Health", "Sức khỏe", "Sức khỏe", "🏋️", 0xFFF97316, 0xFFFEECE0),
     PERSONAL_DEV("Personal Development", "Phát triển bản thân", "Phát triển", "🧠", 0xFF8B5CF6, 0xFFF3E8FF);
 
-    fun toDashboardCategory(id: Int = ordinal + 1): DashboardCategory {
+    fun toDashboardCategory(id: String = com.example.data.DefaultBoards.getDefaultBoardUuid(ordinal + 1)): DashboardCategory {
         val hexStr = String.format("#%06X", (0xFFFFFF and colorHex.toInt()))
         return DashboardCategory(
             id = id,
@@ -140,7 +140,7 @@ data class TimeSlotDistribution(
 )
 
 data class FeaturedTaskItem(
-    val id: Int,
+    val id: String,
     val title: String,
     val statusText: String,
     val isCompleted: Boolean,
@@ -232,7 +232,7 @@ data class AiDashboardExportData(
 
 @JsonClass(generateAdapter = true)
 data class AiCategorySummary(
-    @Json(name = "category_id") val categoryId: Int,
+    @Json(name = "category_id") val categoryId: String,
     @Json(name = "category_name") val categoryName: String,
     @Json(name = "emoji") val emoji: String,
     @Json(name = "color_hex") val colorHex: String,
@@ -262,7 +262,7 @@ data class AiTimeSlotSummary(
 
 @JsonClass(generateAdapter = true)
 data class AiTaskSummary(
-    @Json(name = "id") val id: Int,
+    @Json(name = "id") val id: String,
     @Json(name = "title") val title: String,
     @Json(name = "category_name") val categoryName: String,
     @Json(name = "date") val date: String,

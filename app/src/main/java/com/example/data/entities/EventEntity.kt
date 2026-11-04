@@ -5,6 +5,7 @@ import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.PrimaryKey
+import java.util.UUID
 
 @Entity(
     tableName = "events",
@@ -16,13 +17,13 @@ import androidx.room.PrimaryKey
             onDelete = ForeignKey.CASCADE
         )
     ],
-    indices = [Index("start_date"), Index("board_id")]
+    indices = [Index("start_date"), Index("board_id"), Index("deleted_at")]
 )
 data class EventEntity(
-    @PrimaryKey(autoGenerate = true) val id: Int = 0,
+    @PrimaryKey val id: String = UUID.randomUUID().toString(),
     val title: String,
     val description: String? = null,
-    @ColumnInfo(name = "board_id") val boardId: Int,
+    @ColumnInfo(name = "board_id") val boardId: String,
     @ColumnInfo(name = "start_date") val startDate: String, // ISO "yyyy-MM-dd"
     @ColumnInfo(name = "start_time") val startTime: String? = null, // "HH:mm"
     @ColumnInfo(name = "end_time") val endTime: String? = null, // "HH:mm"
@@ -34,5 +35,7 @@ data class EventEntity(
     @ColumnInfo(name = "completed_at") val completedAt: Long? = null,
     @ColumnInfo(name = "has_reminder") val hasReminder: Boolean = false,
     @ColumnInfo(name = "created_at") val createdAt: Long = System.currentTimeMillis(),
-    @ColumnInfo(name = "updated_at") val updatedAt: Long = System.currentTimeMillis()
+    @ColumnInfo(name = "updated_at") val updatedAt: Long = System.currentTimeMillis(),
+    @ColumnInfo(name = "deleted_at") val deletedAt: Long? = null,
+    val dirty: Boolean = true
 )

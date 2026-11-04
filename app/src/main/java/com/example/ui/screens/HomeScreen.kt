@@ -40,7 +40,7 @@ import java.time.format.DateTimeFormatter
 fun HomeScreen(
     viewModel: ScheduleViewModel,
     onNavigateToAddEvent: () -> Unit = {},
-    onNavigateToEditEvent: (Int) -> Unit = {}
+    onNavigateToEditEvent: (String) -> Unit = {}
 ) {
     val allEvents by viewModel.events.collectAsState()
     val selectedDate by viewModel.selectedDate.collectAsState()

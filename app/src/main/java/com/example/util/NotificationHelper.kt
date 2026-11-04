@@ -15,7 +15,13 @@ import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import com.example.MainActivity
 import com.example.R
+import com.example.data.EventRepository
+import com.example.widget.WidgetUpdateHelper
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import java.time.LocalDate
 import java.time.LocalDateTime
+import java.time.LocalTime
 import java.time.ZoneId
 
 object NotificationHelper {
@@ -156,7 +162,7 @@ object NotificationHelper {
 
     fun scheduleEventReminder(
         context: Context,
-        eventId: Int,
+        eventId: String,
         title: String,
         note: String,
         startTime: LocalDateTime,
@@ -170,9 +176,11 @@ object NotificationHelper {
 
         if (epochMillis <= nowMillis) return // Event/Reminder already in the past
 
+        val notifIntId = (eventId.hashCode() and 0x7FFFFFFF)
         val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
         val intent = Intent(context, NotificationReceiver::class.java).apply {
             putExtra("EXTRA_EVENT_ID", eventId)
+            putExtra("EXTRA_NOTIF_INT_ID", notifIntId)
             putExtra("EXTRA_TITLE", "Nhắc nhở: $title")
             putExtra("EXTRA_MESSAGE", if (note.isNotBlank()) note else "Sự kiện diễn ra lúc ${startTime.toLocalTime()}")
             putExtra("EXTRA_SOUND_ENABLED", isSoundEnabled(context))
@@ -180,7 +188,7 @@ object NotificationHelper {
 
         val pendingIntent = PendingIntent.getBroadcast(
             context,
-            eventId,
+            notifIntId,
             intent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
@@ -198,15 +206,73 @@ object NotificationHelper {
         }
     }
 
-    fun cancelEventReminder(context: Context, eventId: Int) {
+    fun cancelEventReminder(context: Context, eventId: String) {
+        val notifIntId = (eventId.hashCode() and 0x7FFFFFFF)
         val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
         val intent = Intent(context, NotificationReceiver::class.java)
         val pendingIntent = PendingIntent.getBroadcast(
             context,
-            eventId,
+            notifIntId,
             intent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
         alarmManager.cancel(pendingIntent)
+    }
+
+    /**
+     * Reschedules all alarms for active events/reminders from Room, cancels alarms for soft-deleted events,
+     * and refreshes all 3 widgets. Called after event edit/delete and once upon app startup after migration.
+     */
+    suspend fun rescheduleAllAlarmsAndRefreshWidgets(
+        context: Context,
+        repository: EventRepository
+    ) = withContext(Dispatchers.IO) {
+        // 1. Cancel alarms for all soft-deleted events
+        val deletedEventIds = try {
+            repository.getAllSoftDeletedEventIds()
+        } catch (e: Exception) {
+            emptyList()
+        }
+        for (deletedId in deletedEventIds) {
+            cancelEventReminder(context, deletedId)
+        }
+
+        // 2. Schedule reminders for all active events that have reminders enabled and are not completed
+        val activeEvents = try {
+            repository.getAllActiveEventsWithReminders()
+        } catch (e: Exception) {
+            emptyList()
+        }
+        for (event in activeEvents) {
+            val reminders = try {
+                repository.getRemindersForEvent(event.id)
+            } catch (e: Exception) {
+                emptyList()
+            }
+            val offsetMinutes = reminders.firstOrNull()?.remindBeforeMinutes ?: 15
+            val startTime: LocalDateTime? = try {
+                val date = LocalDate.parse(event.startDate)
+                val time = event.startTime?.let { LocalTime.parse(it) } ?: LocalTime.of(8, 0)
+                date.atTime(time)
+            } catch (e: Exception) {
+                null
+            }
+
+            if (startTime != null) {
+                scheduleEventReminder(
+                    context = context,
+                    eventId = event.id,
+                    title = event.title,
+                    note = event.description ?: "",
+                    startTime = startTime,
+                    offsetMinutes = offsetMinutes
+                )
+            }
+        }
+
+        // 3. Refresh all 3 widgets (2x2, 4x2, 2x1)
+        try {
+            WidgetUpdateHelper.updateAllWidgets(context)
+        } catch (_: Exception) {}
     }
 }

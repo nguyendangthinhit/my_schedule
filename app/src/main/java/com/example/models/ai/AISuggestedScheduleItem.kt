@@ -36,7 +36,7 @@ data class AISuggestedScheduleItem(
         }
 
         return Event(
-            id = 0,
+            id = UUID.randomUUID().toString(),
             title = title,
             startTime = startDateTime,
             endTime = endDateTime,

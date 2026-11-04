@@ -6,13 +6,13 @@ import android.content.Intent
 
 class NotificationReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
-        val eventId = intent.getIntExtra("EXTRA_EVENT_ID", (System.currentTimeMillis() % 100000).toInt())
+        val notifId = intent.getIntExtra("EXTRA_NOTIF_INT_ID", (System.currentTimeMillis() % 100000).toInt())
         val title = intent.getStringExtra("EXTRA_TITLE") ?: "Nhắc nhở sự kiện"
         val message = intent.getStringExtra("EXTRA_MESSAGE") ?: "Đã đến giờ sự kiện theo lịch trình của bạn."
 
         NotificationHelper.showNotification(
             context = context,
-            id = eventId,
+            id = notifId,
             title = title,
             message = message,
             isTest = false

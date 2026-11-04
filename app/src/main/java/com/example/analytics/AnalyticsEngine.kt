@@ -12,9 +12,9 @@ import java.time.format.DateTimeFormatter
 import java.time.temporal.TemporalAdjusters
 
 data class ComputedTaskOccurrence(
-    val id: Int,
+    val id: String,
     val title: String,
-    val boardId: Int,
+    val boardId: String,
     val categoryName: String,
     val categoryEmoji: String,
     val colorHex: String,
@@ -41,7 +41,11 @@ class AnalyticsEngine {
         period: PeriodType = PeriodType.WEEK,
         anchorDate: LocalDate = LocalDate.now()
     ): Pair<DashboardOverviewData, AiDashboardExportData> {
-        val categories = mapBoardsToCategories(boards)
+        val activeBoards = boards.filter { it.deletedAt == null }
+        val activeEvents = events.filter { it.deletedAt == null }
+        val activeCompletions = completions.filter { it.deletedAt == null }
+
+        val categories = mapBoardsToCategories(activeBoards)
         val boardMap = categories.associateBy { it.id }
 
         // Compute date range for current period and previous period
@@ -50,7 +54,7 @@ class AnalyticsEngine {
 
         // Expand all events across the required window
         val lookbackStart = prevStart.minusWeeks(3) // 4 weeks before for trend line
-        val allOccurrences = expandEventOccurrences(events, completions, boardMap, lookbackStart, currEnd)
+        val allOccurrences = expandEventOccurrences(activeEvents, activeCompletions, boardMap, lookbackStart, currEnd)
 
         val currentTasks = allOccurrences.filter {
             val d = parseDate(it.date)
@@ -309,13 +313,16 @@ class AnalyticsEngine {
         events: List<EventEntity>,
         completions: List<EventCompletionEntity>,
         holidays: List<HolidayEntity>,
-        categoryId: Int,
+        categoryId: String,
         anchorDate: LocalDate = LocalDate.now()
     ): CategoryDetailData {
-        val categories = mapBoardsToCategories(boards)
+        val activeBoards = boards.filter { it.deletedAt == null }
+        val activeEvents = events.filter { it.deletedAt == null }
+        val activeCompletions = completions.filter { it.deletedAt == null }
+        val categories = mapBoardsToCategories(activeBoards)
         val selectedCategory = categories.firstOrNull { it.id == categoryId }
             ?: categories.firstOrNull()
-            ?: DashboardCategory(1, "Công việc", "#4285F4")
+            ?: DashboardCategory(com.example.data.DefaultBoards.BOARD_WORK_ID, "Công việc", "#4285F4")
 
         val boardMap = categories.associateBy { it.id }
 
@@ -445,9 +452,9 @@ class AnalyticsEngine {
     private fun mapBoardsToCategories(boards: List<BoardEntity>): List<DashboardCategory> {
         if (boards.isEmpty()) {
             return listOf(
-                DashboardCategory(1, "Công việc", "#4285F4"),
-                DashboardCategory(2, "Học tập", "#34A853"),
-                DashboardCategory(3, "Đi chơi", "#E91E63")
+                DashboardCategory(com.example.data.DefaultBoards.BOARD_WORK_ID, "Công việc", "#4285F4"),
+                DashboardCategory(com.example.data.DefaultBoards.BOARD_STUDY_ID, "Học tập", "#34A853"),
+                DashboardCategory(com.example.data.DefaultBoards.BOARD_PLAY_ID, "Đi chơi", "#E91E63")
             )
         }
         return boards.map { board ->
@@ -463,11 +470,11 @@ class AnalyticsEngine {
     private fun expandEventOccurrences(
         events: List<EventEntity>,
         completions: List<EventCompletionEntity>,
-        boardMap: Map<Int, DashboardCategory>,
+        boardMap: Map<String, DashboardCategory>,
         rangeStart: LocalDate,
         rangeEnd: LocalDate
     ): List<ComputedTaskOccurrence> {
-        val completionMap = completions.groupBy { it.eventId }
+        val completionMap: Map<String, List<EventCompletionEntity>> = completions.groupBy { it.eventId }
         val results = mutableListOf<ComputedTaskOccurrence>()
 
         events.forEach { event ->

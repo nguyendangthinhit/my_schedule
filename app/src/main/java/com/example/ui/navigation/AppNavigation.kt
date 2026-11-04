@@ -28,7 +28,7 @@ fun AppNavigation(
         viewModel(factory = ScheduleViewModelFactory(repository))
     },
     navigateTo: String? = null,
-    editEventId: Int? = null,
+    editEventId: String? = null,
     navigationTrigger: Long = 0L
 ) {
     val navController = rememberNavController()
@@ -38,7 +38,7 @@ fun AppNavigation(
     androidx.compose.runtime.LaunchedEffect(navigateTo, editEventId, navigationTrigger) {
         if (navigateTo == "add_event") {
             navController.navigate("add_event")
-        } else if (editEventId != null && editEventId != -1) {
+        } else if (!editEventId.isNullOrBlank()) {
             navController.navigate("edit_event/$editEventId")
         } else if (navigateTo == "home") {
             navController.popBackStack("main", inclusive = false)
@@ -80,9 +80,9 @@ fun AppNavigation(
         }
         composable(
             "edit_event/{eventId}",
-            arguments = listOf(navArgument("eventId") { type = NavType.IntType })
+            arguments = listOf(navArgument("eventId") { type = NavType.StringType })
         ) { backStackEntry ->
-            val eventId = backStackEntry.arguments?.getInt("eventId")
+            val eventId = backStackEntry.arguments?.getString("eventId")
             AddEventScreen(
                 viewModel = viewModel,
                 eventId = eventId,

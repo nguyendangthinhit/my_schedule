@@ -26,8 +26,7 @@ class CalendarSyncRepository(
     private val context: Context,
     private val apiService: CalendarApiService = CalendarApiService.create()
 ) {
-    private val db by lazy { AppDatabase.getDatabase(context) }
-    private val dao by lazy { db.scheduleDao() }
+    private val repository by lazy { (context.applicationContext as? com.example.MyApplication)?.repository ?: com.example.data.EventRepository(com.example.data.AppDatabase.getDatabase(context).scheduleDao()) }
 
     /**
      * Fetch holidays from API, extract the payload, save to Room DB, and return result
@@ -51,7 +50,7 @@ class CalendarSyncRepository(
 
             // Save to Room DB
             if (extractedHolidays.isNotEmpty()) {
-                dao.insertHolidays(extractedHolidays)
+                repository.insertHolidays(extractedHolidays)
             }
 
             val summary = StringBuilder().apply {
@@ -71,7 +70,7 @@ class CalendarSyncRepository(
             
             // Fallback using high-precision Vietnamese Lunar Calendar calculation
             val fallbackList = generateLocalHolidaysForYear(year)
-            dao.insertHolidays(fallbackList)
+            repository.insertHolidays(fallbackList)
 
             val summary = StringBuilder().apply {
                 append("ℹ API ngoại tuyến (${e.localizedMessage ?: "Network error"}).\n")
@@ -121,7 +120,7 @@ class CalendarSyncRepository(
      */
     fun convertHolidayToEvent(holiday: HolidayEntity): Event {
         val date = LocalDate.parse(holiday.date)
-        val eventId = if (holiday.id > 0) 100000 + holiday.id else ((holiday.date.hashCode() xor holiday.name.hashCode()) and 0x7FFFFFFF)
+        val eventId = if (holiday.id > 0) "holiday_${holiday.id}" else "holiday_${holiday.date}_${((holiday.date.hashCode() xor holiday.name.hashCode()) and 0x7FFFFFFF)}"
         return Event(
             id = eventId,
             title = " ${holiday.name}",

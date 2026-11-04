@@ -18,9 +18,10 @@ class MyApplication : Application() {
         NotificationHelper.createNotificationChannels(this)
         com.example.util.AiConfigHelper.getEffectiveApiKey(this)
 
-        // Seed sample data for August 2026 if not already seeded
+        // Seed sample data for August 2026 if not already seeded and reschedule alarms
         CoroutineScope(Dispatchers.IO).launch {
-            SampleDataSeeder.seedSampleDataIfNeeded(this@MyApplication, database.scheduleDao())
+            SampleDataSeeder.seedSampleDataIfNeeded(this@MyApplication, repository)
+            NotificationHelper.rescheduleAllAlarmsAndRefreshWidgets(this@MyApplication, repository)
         }
     }
 }

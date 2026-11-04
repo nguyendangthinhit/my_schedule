@@ -178,7 +178,7 @@ fun AIWeeklyReviewScreen(
                                 coroutineScope.launch {
                                     val nextMonday = LocalDate.now().plusWeeks(1).with(java.time.DayOfWeek.MONDAY)
                                     val newEvent = Event(
-                                        id = 0,
+                                        id = java.util.UUID.randomUUID().toString(),
                                         title = goal.title,
                                         reminderNote = "Mục tiêu được AI đề xuất cho tuần tới để tối ưu hiệu suất.",
                                         category = if (goal.iconType == "FITNESS") EventCategory.PLAY else EventCategory.STUDY,

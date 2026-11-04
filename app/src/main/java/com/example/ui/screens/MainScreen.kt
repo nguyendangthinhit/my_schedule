@@ -54,7 +54,7 @@ fun MainScreen(
     targetTab: String? = null,
     tabTrigger: Long = 0L,
     onNavigateToAddEvent: () -> Unit,
-    onNavigateToEditEvent: (Int) -> Unit
+    onNavigateToEditEvent: (String) -> Unit
 ) {
     val context = LocalContext.current
     val navController = rememberNavController()

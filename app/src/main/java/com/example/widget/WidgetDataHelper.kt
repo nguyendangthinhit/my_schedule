@@ -32,7 +32,7 @@ data class WidgetDisplayData(
 )
 
 data class WidgetEventItem(
-    val id: Int,
+    val id: String,
     val title: String,
     val timeRange: String,
     val startTimeOnly: String,
@@ -42,7 +42,7 @@ data class WidgetEventItem(
 )
 
 data class WidgetTaskItem(
-    val id: Int,
+    val id: String,
     val title: String,
     val timeRange: String,
     val categoryTitle: String,
@@ -75,17 +75,20 @@ object WidgetDataHelper {
         val holidays = try { dao.getAllHolidays().first() } catch (e: Exception) { emptyList() }
         val completions = try { dao.getAllCompletions().first() } catch (e: Exception) { emptyList() }
 
-        val boardMap = boards.associateBy { it.id }
+        val activeBoards = boards.filter { it.deletedAt == null }
+        val activeBoardMap = activeBoards.associateBy { it.id }
+        val activeEvents = events.filter { it.deletedAt == null && activeBoardMap.containsKey(it.boardId) }
+        val activeCompletions = completions.filter { it.deletedAt == null }
         val today = LocalDate.now()
         val now = LocalDateTime.now()
         val todayStr = today.format(DateTimeFormatter.ISO_LOCAL_DATE)
 
-        val completionMap = completions.filter { it.occurrenceDate == todayStr }.associateBy { it.eventId }
+        val completionMap = activeCompletions.filter { it.occurrenceDate == todayStr }.associateBy { it.eventId }
 
         // Filter events occurring today
         val todayEvents = mutableListOf<Event>()
 
-        for (entity in events) {
+        for (entity in activeEvents) {
             val eventDate = try { LocalDate.parse(entity.startDate) } catch (e: Exception) { null } ?: continue
             val isRecurring = entity.repeatRule != null && entity.repeatRule != "NONE"
             var occursToday = false
@@ -126,7 +129,7 @@ object WidgetDataHelper {
                 }
 
                 val isCompleted = completionMap[entity.id]?.isCompleted ?: entity.isCompleted
-                val board = boardMap[entity.boardId]
+                val board = activeBoardMap[entity.boardId]
                 val categoryTitle = board?.name ?: "Học tập"
                 val category = if (board != null) {
                     EventCategory(id = board.id, title = board.name, color = androidx.compose.ui.graphics.Color(android.graphics.Color.parseColor(board.colorHex)), bgColor = androidx.compose.ui.graphics.Color.White)
@@ -152,7 +155,7 @@ object WidgetDataHelper {
             if (holidayDate == today) {
                 todayEvents.add(
                     Event(
-                        id = if (holiday.id > 0) 100000 + holiday.id else 999999,
+                        id = if (holiday.id > 0) "holiday_${holiday.id}" else "holiday_999999",
                         title = holiday.name,
                         startTime = today.atTime(8, 0),
                         endTime = today.atTime(22, 0),

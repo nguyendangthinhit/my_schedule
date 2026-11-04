@@ -24,7 +24,7 @@ import com.example.viewmodel.ScheduleViewModelFactory
 
 class MainActivity : ComponentActivity() {
   private var navigateToExtra by androidx.compose.runtime.mutableStateOf<String?>(null)
-  private var editEventIdExtra by androidx.compose.runtime.mutableStateOf<Int?>(null)
+  private var editEventIdExtra by androidx.compose.runtime.mutableStateOf<String?>(null)
   private var navigationTrigger by androidx.compose.runtime.mutableStateOf(0L)
 
   override fun onCreate(savedInstanceState: Bundle?) {
@@ -84,9 +84,9 @@ class MainActivity : ComponentActivity() {
       val action = intent.getStringExtra("action") ?: intent.action
       val dataStr = intent.data?.toString() ?: ""
       val eventId = if (intent.hasExtra("EDIT_EVENT_ID")) {
-        intent.getIntExtra("EDIT_EVENT_ID", -1)
+        intent.getStringExtra("EDIT_EVENT_ID")
       } else {
-        intent.getIntExtra("event_id", -1)
+        intent.getStringExtra("event_id")
       }
 
       if (action == "ADD_EVENT" || action == "com.example.action.ADD_EVENT" || nav == "add_event" || dataStr.contains("/add")) {
@@ -95,7 +95,7 @@ class MainActivity : ComponentActivity() {
       } else if (action == "OPEN_HOME" || action == "com.example.action.NAVIGATE_HOME" || nav == "home" || dataStr.contains("/home")) {
         navigateToExtra = "home"
         editEventIdExtra = null
-      } else if (eventId != -1) {
+      } else if (!eventId.isNullOrBlank()) {
         editEventIdExtra = eventId
         navigateToExtra = null
       } else {
