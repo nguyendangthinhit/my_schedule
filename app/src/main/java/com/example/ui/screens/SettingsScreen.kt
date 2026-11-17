@@ -1205,7 +1205,7 @@ fun SettingsScreen(viewModel: ScheduleViewModel) {
                                         .clickable {
                                             settingsProvider = prov
                                             settingsModel = if (prov == com.example.util.AiProvider.GROQ) {
-                                                com.example.network.GroqApiService.MODEL_LLAMA_3_3_70B
+                                                com.example.network.GroqApiService.MODEL_GPT_OSS_120B
                                             } else {
                                                 com.example.network.GeminiApiService.MODEL_GEMINI_3_5_FLASH_LITE
                                             }
@@ -1481,7 +1481,7 @@ fun SettingsScreen(viewModel: ScheduleViewModel) {
                                             lineHeight = 13.sp
                                         )
                                         Text(
-                                            text = "• Khi có sự cố (503 cao tải / 429 quá lượt): Tự động chuyển tiếp tức thì sang Groq Llama 3.3 70B (nếu có Groq Key) hoặc đổi sang Gemini 3.1 Flash Lite",
+                                            text = "• Khi có sự cố (503 cao tải / 429 quá lượt): Tự động chuyển tiếp tức thì sang Groq GPT-OSS 120B (nếu có Groq Key) hoặc đổi sang Gemini 3.1 Flash Lite",
                                             fontSize = 10.sp,
                                             color = Color(0xFF1E40AF),
                                             lineHeight = 13.sp
@@ -1536,13 +1536,13 @@ fun SettingsScreen(viewModel: ScheduleViewModel) {
                                             }
                                         }
                                         Text(
-                                            text = "• Mặc định: Groq Llama 3.3 70B Versatile (llama-3.3-70b-versatile)",
+                                            text = "• Mặc định: Groq GPT-OSS 120B (openai/gpt-oss-120b)",
                                             fontSize = 10.5.sp,
                                             fontWeight = FontWeight.SemiBold,
                                             color = Color(0xFF065F46)
                                         )
                                         Text(
-                                            text = "• Khi có sự cố (Rate limit / Quá lượt): Tự động xoay vòng danh sách Key dự phòng (Key Rotation) hoặc đổi sang Llama 3.1 8B Instant",
+                                            text = "• Khi có sự cố (Rate limit / Quá lượt): Tự động xoay vòng danh sách Key dự phòng (Key Rotation) hoặc đổi sang GPT-OSS 20B",
                                             fontSize = 10.sp,
                                             color = Color(0xFF166534),
                                             lineHeight = 13.sp

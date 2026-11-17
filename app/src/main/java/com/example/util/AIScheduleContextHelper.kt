@@ -85,6 +85,29 @@ object AIScheduleContextHelper {
     }
 
     /**
+     * Compact, referenceable list of events (short refs E1, E2... instead of long UUIDs) so the AI can
+     * point at the exact events it wants to delete. Returns the prompt text and ref -> real event id map.
+     */
+    fun buildActionableList(events: List<Event>, limit: Int = 200): Pair<String, Map<String, String>> {
+        val from = LocalDate.now().minusDays(14)
+        val candidates = events
+            .filter { it.category.id != EventCategory.HOLIDAY.id && !it.date.isBefore(from) }
+            .sortedBy { it.startTime }
+            .take(limit)
+        val refMap = LinkedHashMap<String, String>()
+        val text = buildString {
+            append("--- [DANH SÁCH SỰ KIỆN CÓ THỂ THAO TÁC: mã | ngày | giờ | tên | danh mục] ---\n")
+            if (candidates.isEmpty()) append("(Không có sự kiện nào)\n")
+            candidates.forEachIndexed { i, ev ->
+                val ref = "E${i + 1}"
+                refMap[ref] = ev.id
+                append("$ref | ${ev.date.format(dateFormatter)} (${getDayOfWeekNameVi(ev.date)}) | ${ev.startTime.format(timeFormatter)}-${ev.endTime.format(timeFormatter)} | ${ev.title} | ${ev.category.title}\n")
+            }
+        }
+        return text to refMap
+    }
+
+    /**
      * Build rich, multi-week database context for Gemini AI.
      */
     fun buildScheduleContext(events: List<Event>, userQuestion: String = ""): String {

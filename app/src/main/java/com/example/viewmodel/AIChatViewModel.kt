@@ -34,9 +34,17 @@ import java.time.format.DateTimeFormatter
 import java.util.UUID
 import java.util.regex.Pattern
 
+/** HTTP codes for which we try the next Gemini model instead of failing immediately. */
+private val GEMINI_MODEL_FALLBACK_CODES = setOf(404, 500, 502, 503, 504)
+
 enum class MessageRole {
     USER, MODEL
 }
+
+enum class DeletionStatus { PENDING, DONE, CANCELLED }
+
+/** An event the AI proposes to delete; shown to the user for confirmation first. */
+data class DeletionCandidate(val eventId: String, val title: String, val whenText: String)
 
 data class ChatMessage(
     val id: String = UUID.randomUUID().toString(),
@@ -45,7 +53,9 @@ data class ChatMessage(
     val timestamp: Long = System.currentTimeMillis(),
     val isLoading: Boolean = false,
     val isError: Boolean = false,
-    val suggestedItems: List<AISuggestedScheduleItem> = emptyList()
+    val suggestedItems: List<AISuggestedScheduleItem> = emptyList(),
+    val pendingDeletion: List<DeletionCandidate> = emptyList(),
+    val deletionStatus: DeletionStatus = DeletionStatus.PENDING
 )
 
 class AIChatViewModel(
@@ -57,7 +67,7 @@ class AIChatViewModel(
         listOf(
             ChatMessage(
                 role = MessageRole.MODEL,
-                text = "Xin chào! 👋 Tôi là trợ lý AI Lịch Trình. Tôi hỗ trợ nhiều mô hình AI siêu tốc (Groq Llama 3.3, Gemini 2.5 Flash...) giúp bạn lập kế hoạch, phân bổ thời gian biểu và trực tiếp điền vào lịch! Bạn cần tôi hỗ trợ gì hôm nay?"
+                text = "Xin chào! 👋 Tôi là trợ lý AI Lịch Trình. Tôi hỗ trợ nhiều mô hình AI siêu tốc (Groq GPT-OSS 120B, Gemini 2.5 Flash...) giúp bạn lập kế hoạch, phân bổ thời gian biểu và trực tiếp điền vào lịch! Bạn cần tôi hỗ trợ gì hôm nay?"
             )
         )
     )
@@ -72,11 +82,62 @@ class AIChatViewModel(
     private val _activeProvider = MutableStateFlow(AiProvider.GROQ)
     val activeProvider: StateFlow<AiProvider> = _activeProvider.asStateFlow()
 
-    private val _activeModel = MutableStateFlow(GroqApiService.MODEL_LLAMA_3_3_70B)
+    private val _activeModel = MutableStateFlow(GroqApiService.MODEL_GPT_OSS_120B)
     val activeModel: StateFlow<String> = _activeModel.asStateFlow()
 
     private val _customApiKey = MutableStateFlow(AiConfigHelper.getEffectiveApiKey())
     val customApiKey: StateFlow<String> = _customApiKey.asStateFlow()
+
+    /** Set by the UI: deletes events by id from the real schedule database. */
+    var eventDeleter: ((Collection<String>) -> Unit)? = null
+
+    /** User confirmed the AI's proposed deletion card: really delete those events. */
+    fun confirmDeletion(messageId: String) {
+        val msg = _messages.value.find { it.id == messageId } ?: return
+        if (msg.deletionStatus != DeletionStatus.PENDING || msg.pendingDeletion.isEmpty()) return
+        eventDeleter?.invoke(msg.pendingDeletion.map { it.eventId })
+        setDeletionStatus(messageId, DeletionStatus.DONE)
+    }
+
+    fun cancelDeletion(messageId: String) {
+        setDeletionStatus(messageId, DeletionStatus.CANCELLED)
+    }
+
+    private fun setDeletionStatus(messageId: String, status: DeletionStatus) {
+        _messages.value = _messages.value.map {
+            if (it.id == messageId) it.copy(deletionStatus = status) else it
+        }
+    }
+
+    private val deletePattern = Pattern.compile("(?:```)?\\s*delete_json\\s*(\\[[^\\]]*\\])\\s*(?:```)?", Pattern.CASE_INSENSITIVE)
+
+    /** Extracts the AI's proposed deletions (short refs E1, E2...) and maps them to real events. */
+    private fun extractDeletions(
+        rawText: String,
+        refMap: Map<String, String>,
+        allEvents: List<Event>
+    ): Pair<String, List<DeletionCandidate>> {
+        val m = deletePattern.matcher(rawText)
+        if (!m.find()) return rawText to emptyList()
+        val refs = try {
+            val arr = JSONArray(m.group(1))
+            (0 until arr.length()).map { arr.optString(it).trim().uppercase() }
+        } catch (_: Exception) {
+            emptyList()
+        }
+        val byId = allEvents.associateBy { it.id }
+        val timeFmt = DateTimeFormatter.ofPattern("HH:mm")
+        val dateFmt = DateTimeFormatter.ofPattern("dd/MM")
+        val candidates = refs.distinct().mapNotNull { ref ->
+            val ev = refMap[ref]?.let { byId[it] } ?: return@mapNotNull null
+            DeletionCandidate(
+                eventId = ev.id,
+                title = ev.title,
+                whenText = "${ev.startTime.format(dateFmt)} ${ev.startTime.format(timeFmt)}-${ev.endTime.format(timeFmt)}"
+            )
+        }
+        return m.replaceAll("").trim() to candidates
+    }
 
     fun initConfig(context: android.content.Context) {
         val provider = AiConfigHelper.getSelectedProvider(context)
@@ -92,7 +153,7 @@ class AIChatViewModel(
             val currentModel = AiConfigHelper.getSelectedModel(context)
             _activeModel.value = currentModel
         } else {
-            _activeModel.value = if (provider == AiProvider.GROQ) GroqApiService.MODEL_LLAMA_3_3_70B else GeminiApiService.MODEL_GEMINI_3_5_FLASH_LITE
+            _activeModel.value = if (provider == AiProvider.GROQ) GroqApiService.MODEL_GPT_OSS_120B else GeminiApiService.MODEL_GEMINI_3_5_FLASH_LITE
         }
     }
 
@@ -236,6 +297,7 @@ class AIChatViewModel(
                 val tomorrowStr = today.plusDays(1).format(DateTimeFormatter.ofPattern("yyyy-MM-dd"))
 
                 val dbScheduleContext = AIScheduleContextHelper.buildScheduleContext(allEvents, promptText)
+                val (actionableText, refMap) = AIScheduleContextHelper.buildActionableList(allEvents)
 
                 val providerLabel = if (provider == AiProvider.GROQ) "Groq ($modelToUse)" else "Gemini ($modelToUse)"
                 val systemPrompt = buildString {
@@ -271,10 +333,22 @@ class AIChatViewModel(
                     append("  }\n")
                     append("]\n")
                     append("```\n")
+                    append("\nQUY TẮC XÓA / SỬA / THAY THẾ / DỜI LỊCH (RẤT QUAN TRỌNG):\n")
+                    append("- Bạn không trực tiếp sửa cơ sở dữ liệu, nhưng bạn ĐỀ XUẤT các sự kiện cần xóa; ứng dụng sẽ hiện thẻ xác nhận và chỉ xóa khi người dùng bấm xác nhận.\n")
+                    append("- Khi người dùng muốn xóa/sửa/thay/dời lịch: hãy HIỂU NGỮ CẢNH toàn bộ cuộc trò chuyện (không dựa vào một từ khóa), rồi xác định CHÍNH XÁC những sự kiện người dùng đang nói tới trong [DANH SÁCH SỰ KIỆN CÓ THỂ THAO TÁC].\n")
+                    append("- Đề xuất xóa bằng đúng MỘT khối chứa mảng MÃ sự kiện (E1, E2...) trong danh sách đó:\n")
+                    append("```delete_json\n[\"E3\", \"E7\"]\n```\n")
+                    append("  Trong văn bản, nói ngắn gọn bạn định xóa những lịch nào và vì sao. TUYỆT ĐỐI KHÔNG nói 'đã xóa' (vì chưa xóa cho tới khi người dùng xác nhận).\n")
+                    append("- Chỉ chọn những sự kiện thật sự khớp ý người dùng, KHÔNG xóa dư. Chỉ xóa 'tất cả/hết' khi người dùng nói rõ phạm vi đó.\n")
+                    append("- Nếu mơ hồ (có nhiều lịch có thể khớp, hoặc không tìm thấy lịch nào phù hợp): KHÔNG xuất khối delete_json, hãy hỏi lại người dùng để làm rõ.\n")
+                    append("- Sửa/thay thế/dời lịch = xóa lịch cũ (delete_json) + thêm lịch mới (schedule_json) trong CÙNG một câu trả lời. Chỉ đưa vào schedule_json những lịch MỚI cần thêm, không lặp lại các lịch đã có.\n")
+                    append("- Chỉ dùng mã E# của danh sách trong lượt này; các mã nhắc trong tin nhắn trước đã cũ, không được dùng lại. Không bịa mã.\n")
                     append("4. Khi người dùng cung cấp ngày tháng dạng '02/11', '03/11'... hoặc 'Thứ 2 (02/11)', hãy tự động suy luận đúng năm hiện tại (${today.year}) và định dạng chuẩn 'yyyy-MM-dd' (ví dụ: '${today.year}-11-02').\n")
                     append("5. Trường 'category' chỉ nhận 1 trong 4 giá trị: 'STUDY' (Học tập/Đồ án), 'WORK' (Công việc), 'PLAY' (Giải trí/Thể thao), 'MEETING' (Họp hành).\n\n")
 
                     append(dbScheduleContext)
+                    append("\n")
+                    append(actionableText)
                     append("\n")
                     if (!scheduleSummary.isNullOrBlank()) {
                         append("\nThông tin tóm tắt bổ sung: $scheduleSummary\n")
@@ -351,28 +425,44 @@ class AIChatViewModel(
                     try {
                         val response = withContext(Dispatchers.IO) {
                             AiConfigHelper.executeWithKeyRotation(context) { keyToUse ->
-                                try {
-                                    geminiService.generateContent(
-                                        model = modelToUse,
-                                        apiKey = keyToUse,
-                                        request = request
-                                    )
-                                } catch (httpEx: HttpException) {
-                                    if (httpEx.code() == 404 && modelToUse == GeminiApiService.MODEL_GEMINI_3_5_FLASH_LITE) {
-                                        Log.w("AIChat", "gemini-3.5-flash-lite returned 404, auto-falling back to gemini-3.1-flash-lite-preview")
-                                        geminiService.generateContent(
-                                            model = GeminiApiService.MODEL_GEMINI_3_1_FLASH_LITE,
+                                // Try the selected model first, then other Gemini models when the
+                                // model is missing (404) or the server is down/overloaded (5xx).
+                                val modelChain = listOf(
+                                    modelToUse,
+                                    GeminiApiService.MODEL_GEMINI_3_5_FLASH_LITE,
+                                    GeminiApiService.MODEL_GEMINI_3_1_FLASH_LITE,
+                                    GeminiApiService.MODEL_GEMINI_2_5_FLASH
+                                ).distinct()
+                                var lastHttpEx: HttpException? = null
+                                for (candidate in modelChain) {
+                                    try {
+                                        return@executeWithKeyRotation geminiService.generateContent(
+                                            model = candidate,
                                             apiKey = keyToUse,
                                             request = request
                                         )
-                                    } else {
-                                        throw httpEx
+                                    } catch (httpEx: HttpException) {
+                                        if (httpEx.code() in GEMINI_MODEL_FALLBACK_CODES) {
+                                            Log.w("AIChat", "$candidate returned ${httpEx.code()}, trying next Gemini model")
+                                            lastHttpEx = httpEx
+                                        } else {
+                                            throw httpEx
+                                        }
                                     }
                                 }
+                                throw lastHttpEx ?: IllegalStateException("Không có model Gemini khả dụng")
                             }
                         }
-                        rawReplyText = response.candidates?.firstOrNull()?.content?.parts?.firstOrNull()?.text
+                        // A reply can be split across several parts (and may include "thought" parts):
+                        // join every visible text part instead of keeping only the first one.
+                        val candidate = response.candidates?.firstOrNull()
+                        rawReplyText = candidate?.content?.parts
+                            ?.filter { it.thought != true }
+                            ?.mapNotNull { it.text }
+                            ?.joinToString("")
+                            ?.takeIf { it.isNotBlank() }
                             ?: "Không nhận được phản hồi từ AI. Vui lòng thử lại."
+                        Log.d("AIChat", "Gemini finishReason=${candidate?.finishReason}, parts=${candidate?.content?.parts?.size}, len=${rawReplyText.length}")
                     } catch (geminiEx: Exception) {
                         Log.w("AIChat", "Gemini failed with: ${geminiEx.message}")
                         // Check if Groq fallback is possible on 503 / 429
@@ -380,7 +470,7 @@ class AIChatViewModel(
                         val groqKeys = AiConfigHelper.getAllConfiguredGroqKeys(context)
 
                         if (isOverload && groqKeys.isNotEmpty()) {
-                            Log.i("AIChat", "Gemini overloaded! Auto-failing over to Groq Llama 3.3 70B...")
+                            Log.i("AIChat", "Gemini overloaded! Auto-failing over to Groq GPT-OSS 120B...")
                             val groqMessages = mutableListOf<GroqMessage>()
                             groqMessages.add(GroqMessage(role = "system", content = systemPrompt))
                             validMessages.forEach { msg ->
@@ -390,18 +480,24 @@ class AIChatViewModel(
                                 groqMessages.add(GroqMessage(role = "user", content = promptText))
                             }
                             val groqRequest = GroqChatRequest(
-                                model = GroqApiService.MODEL_LLAMA_3_3_70B,
+                                model = GroqApiService.MODEL_GPT_OSS_120B,
                                 messages = groqMessages,
                                 temperature = 0.7f,
                                 maxTokens = 8192
                             )
-                            val groqRes = withContext(Dispatchers.IO) {
-                                AiConfigHelper.executeGroqWithKeyRotation(context) { groqKey ->
-                                    groqService.chatCompletion(authorization = "Bearer $groqKey", request = groqRequest)
+                            val groqRes = try {
+                                withContext(Dispatchers.IO) {
+                                    AiConfigHelper.executeGroqWithKeyRotation(context) { groqKey ->
+                                        groqService.chatCompletion(authorization = "Bearer $groqKey", request = groqRequest)
+                                    }
                                 }
+                            } catch (groqEx: Exception) {
+                                // Keep the ORIGINAL Gemini error so the user sees the real cause.
+                                Log.w("AIChat", "Groq failover also failed: ${groqEx.message}")
+                                throw geminiEx
                             }
                             rawReplyText = groqRes.choices?.firstOrNull()?.message?.content ?: ""
-                            failoverNote = "\n\n*(⚡ Chú thích: Máy chủ Google Gemini gặp tình trạng cao tải (503/429), hệ thống đã tự động chuyển tiếp và xử lý thành công tức thì bằng Groq Llama 3.3 70B!)*"
+                            failoverNote = "\n\n*(⚡ Chú thích: Máy chủ Google Gemini gặp tình trạng cao tải (503/429), hệ thống đã tự động chuyển tiếp và xử lý thành công tức thì bằng Groq GPT-OSS 120B!)*"
                         } else {
                             throw geminiEx
                         }
@@ -409,13 +505,17 @@ class AIChatViewModel(
                 }
 
                 // Parse structured schedule items if present
-                val (cleanText, suggestedItems) = parseAiResponse(rawReplyText, promptText)
+                val (textWithoutDelete, deletions) = extractDeletions(rawReplyText, refMap, allEvents)
+                val (cleanText, suggestedItems) = parseAiResponse(
+                    textWithoutDelete, promptText, allowFallback = deletions.isEmpty()
+                )
                 val finalText = if (failoverNote != null) cleanText + failoverNote else cleanText
 
                 _messages.value = _messages.value.filter { !it.isLoading } + ChatMessage(
                     role = MessageRole.MODEL,
                     text = finalText,
-                    suggestedItems = suggestedItems
+                    suggestedItems = suggestedItems,
+                    pendingDeletion = deletions
                 )
             } catch (e: Exception) {
                 Log.e("AIChat", "Error calling AI API", e)
@@ -443,7 +543,7 @@ class AIChatViewModel(
                     }
 
                     if (code == 503 || serverMsg.contains("overloaded", ignoreCase = true) || serverMsg.contains("Service Unavailable", ignoreCase = true)) {
-                        errorDesc = "Máy chủ Google Gemini đang gặp tình trạng quá tải (HTTP 503 Overloaded). Khuyên bạn nên bấm vào biểu tượng ⚙️/🔑 ở góc trên để chuyển sang mô hình Groq Llama 3.3 (miễn phí, tốc độ LPU cực nhanh, không bao giờ bị nghẽn tải server) hoặc chọn Gemini 3.1 Flash Lite!"
+                        errorDesc = "Máy chủ Google Gemini đang gặp tình trạng quá tải (HTTP 503 Overloaded). Khuyên bạn nên bấm vào biểu tượng ⚙️/🔑 ở góc trên để chuyển sang mô hình Groq GPT-OSS 120B (miễn phí, tốc độ LPU cực nhanh, không bao giờ bị nghẽn tải server) hoặc chọn Gemini 3.1 Flash Lite!"
                     } else if (code == 401 || code == 400 || serverMsg.contains("API key", ignoreCase = true) || serverMsg.contains("UNAUTHENTICATED", ignoreCase = true) || serverMsg.contains("API_KEY_INVALID", ignoreCase = true)) {
                         errorDesc = "Lỗi xác thực (401/400): API Key chưa chính xác hoặc đã hết hạn. Vui lòng bấm vào biểu tượng 🔑 ở góc phải trên để nhập API Key hợp lệ (Groq: gsk_... hoặc Gemini: AIzaSy...)."
                     } else if (code == 429) {
@@ -462,6 +562,19 @@ class AIChatViewModel(
                         role = MessageRole.MODEL,
                         text = "$directLocalAnswer\n\n*(Thông tin được trích xuất trực tiếp từ cơ sở dữ liệu nội bộ)*"
                     )
+                    return@launch
+                }
+
+                // If the user pasted an explicit schedule ("Thứ 2 (02/11) - Môn — 09:15–11:15"), read it
+                // locally so it still works while the AI is down.
+                val pastedItems = parsePastedSchedule(promptText)
+                if (pastedItems.isNotEmpty()) {
+                    _messages.value = _messages.value.filter { !it.isLoading } + ChatMessage(
+                        role = MessageRole.MODEL,
+                        text = "AI đang không phản hồi được, nên mình đã đọc trực tiếp danh sách bạn gửi: tìm thấy ${pastedItems.size} buổi. Bạn kiểm tra, tích chọn và nhấn 'AI thêm vào lịch trình' để lưu nhé!\n\n*(Lưu ý: $errorDesc)*",
+                        suggestedItems = pastedItems
+                    )
+                    _errorMessage.value = errorDesc
                     return@launch
                 }
 
@@ -493,7 +606,11 @@ class AIChatViewModel(
         }
     }
 
-    private fun parseAiResponse(rawText: String, userPrompt: String): Pair<String, List<AISuggestedScheduleItem>> {
+    private fun parseAiResponse(
+        rawText: String,
+        userPrompt: String,
+        allowFallback: Boolean = true
+    ): Pair<String, List<AISuggestedScheduleItem>> {
         val suggestedList = mutableListOf<AISuggestedScheduleItem>()
         var cleanedText = rawText
 
@@ -506,14 +623,18 @@ class AIChatViewModel(
             jsonArrayStr = matcher.group(1)
             cleanedText = matcher.replaceAll("").trim()
         } else {
-            // Check for raw JSON array if markdown backticks were omitted
+            // Check for raw JSON array if markdown backticks were omitted (or the reply was truncated
+            // before the closing "]" / closing fence)
             val startIdx = rawText.indexOf('[')
-            val endIdx = rawText.lastIndexOf(']')
+            val lastBracket = rawText.lastIndexOf(']')
+            val endIdx = if (lastBracket > startIdx) lastBracket else rawText.lastIndexOf('}')
             if (startIdx != -1 && endIdx != -1 && endIdx > startIdx) {
-                val candidate = rawText.substring(startIdx, endIdx + 1)
+                val candidate = rawText.substring(startIdx, endIdx + 1).let {
+                    if (it.trimEnd().endsWith("]")) it else "$it]"
+                }
                 if (candidate.contains("\"title\"") && (candidate.contains("\"startTime\"") || candidate.contains("\"date\""))) {
                     jsonArrayStr = candidate
-                    cleanedText = (rawText.substring(0, startIdx) + rawText.substring(endIdx + 1)).trim()
+                    cleanedText = (rawText.substring(0, startIdx) + rawText.substring(minOf(endIdx + 1, rawText.length))).trim()
                 }
             }
         }
@@ -602,7 +723,7 @@ class AIChatViewModel(
         }
 
         // 2. Fallback: If no JSON code block but user requested schedule and text has time patterns
-        if (suggestedList.isEmpty()) {
+        if (suggestedList.isEmpty() && allowFallback) {
             val isPlanningPrompt = userPrompt.contains("phân bổ", ignoreCase = true) ||
                     userPrompt.contains("lịch", ignoreCase = true) ||
                     userPrompt.contains("kế hoạch", ignoreCase = true) ||
@@ -701,6 +822,69 @@ class AIChatViewModel(
             }
         }
         return list.take(100)
+    }
+
+    /**
+     * Parses a schedule the user typed/pasted themselves, e.g.
+     *   Thứ 2 (02/11)
+     *   - Hệ Phân Tán (J2EE, .NET), P. 506, 78A Phan Văn Trị — 09:15–11:15.
+     * Day headers set the date; item lines give "title[, location] — start–end".
+     */
+    internal fun parsePastedSchedule(text: String, today: LocalDate = LocalDate.now()): List<AISuggestedScheduleItem> {
+        val headerRegex = Regex("""^\s*(?:thứ\s*\d|chủ\s*nhật|cn)\b.*?\((\d{1,2})/(\d{1,2})(?:/(\d{2,4}))?\)""", RegexOption.IGNORE_CASE)
+        val itemRegex = Regex("""^\s*[-•*]\s*(.+?)\s+[—–-]\s+(\d{1,2}[:h]\d{2})\s*[—–-]\s*(\d{1,2}[:h]\d{2})""")
+
+        val items = mutableListOf<AISuggestedScheduleItem>()
+        var currentDate: LocalDate? = null
+
+        for (line in text.lines()) {
+            headerRegex.find(line)?.let { m ->
+                val day = m.groupValues[1].toInt()
+                val month = m.groupValues[2].toInt()
+                val year = m.groupValues[3].takeIf { it.isNotEmpty() }?.toInt()?.let { if (it < 100) 2000 + it else it } ?: today.year
+                currentDate = try { LocalDate.of(year, month, day) } catch (_: Exception) { null }
+                return@let
+            } ?: run {
+                val date = currentDate ?: return@run
+                val m = itemRegex.find(line) ?: return@run
+                val (rawTitle, startStr, endStr) = m.destructured
+
+                // Split "title, location" at the first comma that is not inside parentheses.
+                var depth = 0
+                var splitAt = -1
+                for ((i, c) in rawTitle.withIndex()) {
+                    when (c) {
+                        '(' -> depth++
+                        ')' -> if (depth > 0) depth--
+                        ',' -> if (depth == 0 && splitAt < 0) splitAt = i
+                    }
+                }
+                val title = (if (splitAt >= 0) rawTitle.substring(0, splitAt) else rawTitle).trim()
+                val location = if (splitAt >= 0) rawTitle.substring(splitAt + 1).trim() else ""
+
+                val start = parseTime(startStr.replace('h', ':'), LocalTime.of(8, 0))
+                val end = parseTime(endStr.replace('h', ':'), start.plusMinutes(60))
+                val category = when {
+                    title.contains("họp", ignoreCase = true) -> "MEETING"
+                    title.contains("gym", ignoreCase = true) || title.contains("thể dục", ignoreCase = true) -> "PLAY"
+                    else -> "STUDY"
+                }
+
+                items.add(
+                    AISuggestedScheduleItem(
+                        title = title,
+                        date = date,
+                        startTime = start,
+                        endTime = end,
+                        categoryType = category,
+                        reminderNote = location.ifBlank { "Nhập từ danh sách bạn gửi" },
+                        isSelected = true,
+                        isAdded = false
+                    )
+                )
+            }
+        }
+        return items
     }
 
     private fun generateFallbackSchedule(userPrompt: String): List<AISuggestedScheduleItem> {

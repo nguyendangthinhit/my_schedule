@@ -16,7 +16,9 @@ import java.util.concurrent.TimeUnit
 
 @JsonClass(generateAdapter = true)
 data class GeminiPart(
-    @Json(name = "text") val text: String? = null
+    @Json(name = "text") val text: String? = null,
+    /** True for "thinking" parts that must not be shown to the user. */
+    @Json(name = "thought") val thought: Boolean? = null
 )
 
 @JsonClass(generateAdapter = true)

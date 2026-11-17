@@ -44,6 +44,7 @@ import com.example.models.ai.AISuggestedScheduleItem
 import com.example.viewmodel.AIChatViewModel
 import com.example.viewmodel.AIChatViewModelFactory
 import com.example.viewmodel.ChatMessage
+import com.example.viewmodel.DeletionStatus
 import com.example.viewmodel.MessageRole
 import com.example.viewmodel.ScheduleViewModel
 import kotlinx.coroutines.launch
@@ -69,6 +70,9 @@ fun AIScreen(
 
     LaunchedEffect(Unit) {
         aiViewModel.initConfig(context)
+    }
+    LaunchedEffect(scheduleViewModel) {
+        aiViewModel.eventDeleter = { ids -> scheduleViewModel?.deleteEvents(ids, context) }
     }
 
     val availableCategories by (scheduleViewModel?.categories?.collectAsStateWithLifecycle() ?: remember {
@@ -209,9 +213,8 @@ fun AIScreen(
                                 ) {
                                     val modelDisplay = remember(activeProvider, activeModel) {
                                         when (activeModel) {
-                                            com.example.network.GroqApiService.MODEL_LLAMA_3_3_70B -> "Groq • Llama 3.3 70B"
-                                            com.example.network.GroqApiService.MODEL_LLAMA_3_1_8B -> "Groq • Llama 3.1 8B"
-                                            com.example.network.GroqApiService.MODEL_MIXTRAL_8X7B -> "Groq • Mixtral 8x7B"
+                                            com.example.network.GroqApiService.MODEL_GPT_OSS_120B -> "Groq • GPT-OSS 120B"
+                                            com.example.network.GroqApiService.MODEL_GPT_OSS_20B -> "Groq • GPT-OSS 20B"
                                             com.example.network.GeminiApiService.MODEL_GEMINI_3_5_FLASH_LITE -> "Gemini • 3.5 Flash Lite"
                                             com.example.network.GeminiApiService.MODEL_GEMINI_3_1_FLASH_LITE -> "Gemini • 3.1 Flash Lite"
                                             else -> if (activeProvider == com.example.util.AiProvider.GROQ) "Groq LPU" else "Gemini Flash Lite"
@@ -336,9 +339,13 @@ fun AIScreen(
                         message = message,
                         onCopyText = { text ->
                             val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                            val clip = ClipData.newPlainText("AI Message", text)
+                            val clip = ClipData.newPlainText(if (message.role == MessageRole.USER) "User Message" else "AI Message", text)
                             clipboard.setPrimaryClip(clip)
-                            Toast.makeText(context, "Đã sao chép phản hồi", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(
+                                context,
+                                if (message.role == MessageRole.USER) "Đã sao chép tin nhắn" else "Đã sao chép phản hồi",
+                                Toast.LENGTH_SHORT
+                            ).show()
                         },
                         onRetry = {
                             if (message.isError) {
@@ -354,6 +361,8 @@ fun AIScreen(
                         onToggleSelectAll = { selectAll ->
                             aiViewModel.toggleSelectAll(message.id, selectAll)
                         },
+                        onConfirmDeletion = { aiViewModel.confirmDeletion(message.id) },
+                        onCancelDeletion = { aiViewModel.cancelDeletion(message.id) },
                         onAddSelectedToSchedule = { selectedItems ->
                             if (scheduleViewModel != null && selectedItems.isNotEmpty()) {
                                 val eventsToAdd = selectedItems.map { it.toEvent(availableCategories) }
@@ -602,7 +611,7 @@ fun AIScreen(
                                         .clickable {
                                             dialogProvider = prov
                                             dialogModel = if (prov == com.example.util.AiProvider.GROQ) {
-                                                com.example.network.GroqApiService.MODEL_LLAMA_3_3_70B
+                                                com.example.network.GroqApiService.MODEL_GPT_OSS_120B
                                             } else {
                                                 com.example.network.GeminiApiService.MODEL_GEMINI_3_5_FLASH_LITE
                                             }
@@ -872,7 +881,7 @@ fun AIScreen(
                                             lineHeight = 13.sp
                                         )
                                         Text(
-                                            text = "• Khi có sự cố (503 cao tải / 429 quá lượt): Tự động chuyển tiếp tức thì sang Groq Llama 3.3 70B (nếu có Groq Key) hoặc đổi sang Gemini 3.1 Flash Lite",
+                                            text = "• Khi có sự cố (503 cao tải / 429 quá lượt): Tự động chuyển tiếp tức thì sang Groq GPT-OSS 120B (nếu có Groq Key) hoặc đổi sang Gemini 3.1 Flash Lite",
                                             fontSize = 10.sp,
                                             color = Color(0xFF1E40AF),
                                             lineHeight = 13.sp
@@ -927,13 +936,13 @@ fun AIScreen(
                                             }
                                         }
                                         Text(
-                                            text = "• Mặc định: Groq Llama 3.3 70B Versatile (llama-3.3-70b-versatile)",
+                                            text = "• Mặc định: Groq GPT-OSS 120B (openai/gpt-oss-120b)",
                                             fontSize = 10.5.sp,
                                             fontWeight = FontWeight.SemiBold,
                                             color = Color(0xFF065F46)
                                         )
                                         Text(
-                                            text = "• Khi có sự cố (Rate limit / Quá lượt): Tự động xoay vòng danh sách Key dự phòng (Key Rotation) hoặc đổi sang Llama 3.1 8B Instant",
+                                            text = "• Khi có sự cố (Rate limit / Quá lượt): Tự động xoay vòng danh sách Key dự phòng (Key Rotation) hoặc đổi sang GPT-OSS 20B",
                                             fontSize = 10.sp,
                                             color = Color(0xFF166534),
                                             lineHeight = 13.sp
@@ -997,7 +1006,9 @@ fun ChatMessageItem(
     onRetry: () -> Unit,
     onToggleItemSelection: (String) -> Unit,
     onToggleSelectAll: (Boolean) -> Unit,
-    onAddSelectedToSchedule: (List<AISuggestedScheduleItem>) -> Unit
+    onAddSelectedToSchedule: (List<AISuggestedScheduleItem>) -> Unit,
+    onConfirmDeletion: () -> Unit = {},
+    onCancelDeletion: () -> Unit = {}
 ) {
     val isUser = message.role == MessageRole.USER
 
@@ -1073,6 +1084,16 @@ fun ChatMessageItem(
                 }
             }
 
+            // Confirmation card for deletions proposed by the AI
+            if (!isUser && !message.isLoading && message.pendingDeletion.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(10.dp))
+                AIDeletionConfirmCard(
+                    message = message,
+                    onConfirm = onConfirmDeletion,
+                    onCancel = onCancelDeletion
+                )
+            }
+
             // Actionable Suggestions Card if AI provided structured schedule items
             if (!isUser && !message.isLoading && message.suggestedItems.isNotEmpty()) {
                 Spacer(modifier = Modifier.height(10.dp))
@@ -1082,6 +1103,26 @@ fun ChatMessageItem(
                     onToggleSelectAll = onToggleSelectAll,
                     onAddSelected = onAddSelectedToSchedule
                 )
+            }
+
+            // Copy button for user message
+            if (isUser && !message.isLoading) {
+                Row(
+                    modifier = Modifier.padding(top = 4.dp, end = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    IconButton(
+                        onClick = { onCopyText(message.text) },
+                        modifier = Modifier.size(24.dp)
+                    ) {
+                        Icon(
+                            Icons.Default.ContentCopy,
+                            contentDescription = "Sao chép",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                            modifier = Modifier.size(14.dp)
+                        )
+                    }
+                }
             }
 
             // Action buttons for AI message (Copy, Retry)
@@ -1131,6 +1172,66 @@ fun ChatMessageItem(
                     tint = MaterialTheme.colorScheme.onPrimaryContainer,
                     modifier = Modifier.size(18.dp)
                 )
+            }
+        }
+    }
+}
+
+@Composable
+fun AIDeletionConfirmCard(
+    message: ChatMessage,
+    onConfirm: () -> Unit,
+    onCancel: () -> Unit
+) {
+    val items = message.pendingDeletion
+    val status = message.deletionStatus
+    Surface(
+        shape = RoundedCornerShape(12.dp),
+        color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.35f),
+        border = androidx.compose.foundation.BorderStroke(
+            0.5.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.4f)
+        ),
+        modifier = Modifier.fillMaxWidth().testTag("ai_delete_confirm_card")
+    ) {
+        Column(modifier = Modifier.padding(12.dp)) {
+            Text(
+                text = when (status) {
+                    DeletionStatus.PENDING -> "Xác nhận xóa ${items.size} lịch sau?"
+                    DeletionStatus.DONE -> "Đã xóa ${items.size} lịch"
+                    DeletionStatus.CANCELLED -> "Đã hủy, không xóa lịch nào"
+                },
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 13.sp,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Spacer(modifier = Modifier.height(6.dp))
+            items.take(8).forEach { c ->
+                Text(
+                    text = "• ${c.title}  (${c.whenText})",
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            if (items.size > 8) {
+                Text(
+                    text = "… và ${items.size - 8} lịch khác",
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            if (status == DeletionStatus.PENDING) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Button(
+                        onClick = onConfirm,
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
+                        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 4.dp)
+                    ) { Text("Xóa ${items.size} lịch", fontSize = 12.sp) }
+                    OutlinedButton(
+                        onClick = onCancel,
+                        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 4.dp)
+                    ) { Text("Hủy", fontSize = 12.sp) }
+                }
             }
         }
     }

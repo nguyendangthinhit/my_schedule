@@ -48,24 +48,17 @@ object AiConfigHelper {
     val AVAILABLE_MODELS = listOf(
         // Groq Models
         AiModelInfo(
-            id = GroqApiService.MODEL_LLAMA_3_3_70B,
+            id = GroqApiService.MODEL_GPT_OSS_120B,
             provider = AiProvider.GROQ,
-            displayName = "Groq Llama 3.3 70B Versatile",
+            displayName = "Groq GPT-OSS 120B",
             description = "Mạnh nhất, suy luận lịch trình chuẩn xác, tốc độ cực nhanh, không lo cao tải server",
             isRecommended = true
         ),
         AiModelInfo(
-            id = GroqApiService.MODEL_LLAMA_3_1_8B,
+            id = GroqApiService.MODEL_GPT_OSS_20B,
             provider = AiProvider.GROQ,
-            displayName = "Groq Llama 3.1 8B Instant",
-            description = "Phản hồi gần như tức thì (~800 tok/s), thích hợp hội thoại nhanh",
-            isRecommended = false
-        ),
-        AiModelInfo(
-            id = GroqApiService.MODEL_MIXTRAL_8X7B,
-            provider = AiProvider.GROQ,
-            displayName = "Groq Mixtral 8x7B",
-            description = "Kiến trúc MoE mạnh mẽ, ngữ cảnh rộng 32k tokens",
+            displayName = "Groq GPT-OSS 20B",
+            description = "Nhẹ và nhanh, thích hợp hội thoại ngắn",
             isRecommended = false
         ),
 
@@ -136,7 +129,7 @@ object AiConfigHelper {
         }
         // Default based on provider
         return if (provider == AiProvider.GROQ) {
-            GroqApiService.MODEL_LLAMA_3_3_70B
+            GroqApiService.MODEL_GPT_OSS_120B
         } else {
             GeminiApiService.MODEL_GEMINI_3_5_FLASH_LITE
         }

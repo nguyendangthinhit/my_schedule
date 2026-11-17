@@ -52,9 +52,8 @@ interface GroqApiService {
         const val BASE_URL = "https://api.groq.com/"
 
         // Supported Groq Models
-        const val MODEL_LLAMA_3_3_70B = "llama-3.3-70b-versatile"
-        const val MODEL_LLAMA_3_1_8B = "llama-3.1-8b-instant"
-        const val MODEL_MIXTRAL_8X7B = "mixtral-8x7b-32768"
+        const val MODEL_GPT_OSS_120B = "openai/gpt-oss-120b"
+        const val MODEL_GPT_OSS_20B = "openai/gpt-oss-20b"
 
         fun create(): GroqApiService {
             val logging = HttpLoggingInterceptor().apply {

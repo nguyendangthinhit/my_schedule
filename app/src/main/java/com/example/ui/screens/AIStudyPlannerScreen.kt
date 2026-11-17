@@ -1901,7 +1901,7 @@ private suspend fun generateStudyPlan(
             if (provider == AiProvider.GROQ && groqKey.isNotBlank()) {
                 val groqService = GroqApiService.create()
                 val groqReq = GroqChatRequest(
-                    model = GroqApiService.MODEL_LLAMA_3_3_70B,
+                    model = GroqApiService.MODEL_GPT_OSS_120B,
                     messages = listOf(
                         GroqMessage(role = "system", content = "Bạn là chuyên gia lập kế hoạch học tập thông minh (AI Planner)."),
                         GroqMessage(role = "user", content = prompt)
@@ -1940,10 +1940,10 @@ private suspend fun generateStudyPlan(
                     responseText = response.candidates?.firstOrNull()?.content?.parts?.firstOrNull()?.text ?: ""
                 } catch (geminiEx: Exception) {
                     if (groqKey.isNotBlank()) {
-                        Log.i("AIPlanner", "Gemini failed, failing over to Groq Llama 3.3...")
+                        Log.i("AIPlanner", "Gemini failed, failing over to Groq GPT-OSS 120B...")
                         val groqService = GroqApiService.create()
                         val groqReq = GroqChatRequest(
-                            model = GroqApiService.MODEL_LLAMA_3_3_70B,
+                            model = GroqApiService.MODEL_GPT_OSS_120B,
                             messages = listOf(
                                 GroqMessage(role = "system", content = "Bạn là chuyên gia lập kế hoạch học tập thông minh (AI Planner)."),
                                 GroqMessage(role = "user", content = prompt)
