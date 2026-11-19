@@ -491,7 +491,7 @@ object AiConfigHelper {
     fun isOverloadOrRateLimit(e: Exception): Boolean {
         if (e is retrofit2.HttpException) {
             val code = e.code()
-            if (code == 429 || code == 503 || code == 502 || code == 504 || code == 403 || code == 401 || code == 400) {
+            if (code == 429 || code == 413 || code == 503 || code == 502 || code == 504 || code == 403 || code == 401 || code == 400) {
                 return true
             }
         }

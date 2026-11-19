@@ -34,8 +34,23 @@ import java.time.format.DateTimeFormatter
 import java.util.UUID
 import java.util.regex.Pattern
 
-/** HTTP codes for which we try the next Gemini model instead of failing immediately. */
-private val GEMINI_MODEL_FALLBACK_CODES = setOf(404, 500, 502, 503, 504)
+/**
+ * Ordered list of models to try for one chat request: the selected model, then the other model of
+ * the same provider, then the other provider's models. A provider without API keys is skipped.
+ */
+internal fun buildAiAttemptChain(
+    selectedProvider: AiProvider,
+    selectedModel: String,
+    hasGeminiKeys: Boolean,
+    hasGroqKeys: Boolean
+): List<AiModelInfo> {
+    fun usable(p: AiProvider) = if (p == AiProvider.GROQ) hasGroqKeys else hasGeminiKeys
+    val other = if (selectedProvider == AiProvider.GROQ) AiProvider.GEMINI else AiProvider.GROQ
+    val same = AiConfigHelper.AVAILABLE_MODELS.filter { it.provider == selectedProvider }
+        .sortedByDescending { it.id == selectedModel }
+    val others = AiConfigHelper.AVAILABLE_MODELS.filter { it.provider == other }
+    return same.filter { usable(selectedProvider) } + others.filter { usable(other) }
+}
 
 enum class MessageRole {
     USER, MODEL
@@ -358,151 +373,108 @@ class AIChatViewModel(
                 var rawReplyText: String = ""
                 var failoverNote: String? = null
 
-                if (provider == AiProvider.GROQ) {
-                    // Call Groq API
-                    val groqMessages = mutableListOf<GroqMessage>()
-                    groqMessages.add(GroqMessage(role = "system", content = systemPrompt))
-                    validMessages.forEach { msg ->
-                        groqMessages.add(
-                            GroqMessage(
-                                role = if (msg.role == MessageRole.USER) "user" else "assistant",
-                                content = msg.text
-                            )
+                // Request bodies are provider-specific but model-independent: build them once.
+                val groqMessages = mutableListOf<GroqMessage>()
+                groqMessages.add(GroqMessage(role = "system", content = systemPrompt))
+                validMessages.forEach { msg ->
+                    groqMessages.add(
+                        GroqMessage(
+                            role = if (msg.role == MessageRole.USER) "user" else "assistant",
+                            content = msg.text
+                        )
+                    )
+                }
+                if (validMessages.isEmpty()) {
+                    groqMessages.add(GroqMessage(role = "user", content = promptText))
+                }
+
+                val geminiContents = if (validMessages.isNotEmpty()) {
+                    validMessages.map { msg ->
+                        GeminiContent(
+                            role = if (msg.role == MessageRole.USER) "user" else "model",
+                            parts = listOf(GeminiPart(text = msg.text))
                         )
                     }
-                    if (validMessages.isEmpty()) {
-                        groqMessages.add(GroqMessage(role = "user", content = promptText))
-                    }
-
-                    val groqRequest = GroqChatRequest(
-                        model = modelToUse,
-                        messages = groqMessages,
-                        temperature = 0.7f,
-                        maxTokens = 8192
-                    )
-
-                    val response = withContext(Dispatchers.IO) {
-                        AiConfigHelper.executeGroqWithKeyRotation(context) { keyToUse ->
-                            groqService.chatCompletion(
-                                authorization = "Bearer $keyToUse",
-                                request = groqRequest
-                            )
-                        }
-                    }
-                    rawReplyText = response.choices?.firstOrNull()?.message?.content
-                        ?: "Không nhận được phản hồi từ Groq. Vui lòng thử lại."
                 } else {
-                    // Call Gemini API (with auto-failover to Groq if Gemini hits 503 Overload)
-                    val contents = if (validMessages.isNotEmpty()) {
-                        validMessages.map { msg ->
-                            GeminiContent(
-                                role = if (msg.role == MessageRole.USER) "user" else "model",
-                                parts = listOf(GeminiPart(text = msg.text))
-                            )
-                        }
-                    } else {
-                        listOf(
-                            GeminiContent(
-                                role = "user",
-                                parts = listOf(GeminiPart(text = promptText))
-                            )
-                        )
-                    }
-
-                    val request = GeminiRequest(
-                        contents = contents,
-                        systemInstruction = GeminiContent(
-                            parts = listOf(GeminiPart(text = systemPrompt))
-                        ),
-                        generationConfig = GeminiGenerationConfig(
-                            temperature = 0.7f,
-                            topP = 0.95f,
-                            topK = 40,
-                            maxOutputTokens = 8192
-                        )
+                    listOf(GeminiContent(role = "user", parts = listOf(GeminiPart(text = promptText))))
+                }
+                val geminiRequest = GeminiRequest(
+                    contents = geminiContents,
+                    systemInstruction = GeminiContent(parts = listOf(GeminiPart(text = systemPrompt))),
+                    generationConfig = GeminiGenerationConfig(
+                        temperature = 0.7f,
+                        topP = 0.95f,
+                        topK = 40,
+                        maxOutputTokens = 8192
                     )
+                )
 
+                // Order: selected model -> other model of the same provider -> other provider's models.
+                // Each model tries all of its provider's keys (key rotation) before we move on.
+                val attempts = buildAiAttemptChain(
+                    selectedProvider = provider,
+                    selectedModel = modelToUse,
+                    hasGeminiKeys = AiConfigHelper.getAllConfiguredKeys(context).isNotEmpty(),
+                    hasGroqKeys = AiConfigHelper.getAllConfiguredGroqKeys(context).isNotEmpty()
+                )
+
+                var firstError: Exception? = null
+                var succeeded = false
+                for (attempt in attempts) {
                     try {
-                        val response = withContext(Dispatchers.IO) {
-                            AiConfigHelper.executeWithKeyRotation(context) { keyToUse ->
-                                // Try the selected model first, then other Gemini models when the
-                                // model is missing (404) or the server is down/overloaded (5xx).
-                                val modelChain = listOf(
-                                    modelToUse,
-                                    GeminiApiService.MODEL_GEMINI_3_5_FLASH_LITE,
-                                    GeminiApiService.MODEL_GEMINI_3_1_FLASH_LITE,
-                                    GeminiApiService.MODEL_GEMINI_2_5_FLASH
-                                ).distinct()
-                                var lastHttpEx: HttpException? = null
-                                for (candidate in modelChain) {
-                                    try {
-                                        return@executeWithKeyRotation geminiService.generateContent(
-                                            model = candidate,
-                                            apiKey = keyToUse,
-                                            request = request
-                                        )
-                                    } catch (httpEx: HttpException) {
-                                        if (httpEx.code() in GEMINI_MODEL_FALLBACK_CODES) {
-                                            Log.w("AIChat", "$candidate returned ${httpEx.code()}, trying next Gemini model")
-                                            lastHttpEx = httpEx
-                                        } else {
-                                            throw httpEx
-                                        }
-                                    }
+                        rawReplyText = withContext(Dispatchers.IO) {
+                            if (attempt.provider == AiProvider.GROQ) {
+                                val groqRequest = GroqChatRequest(
+                                    model = attempt.id,
+                                    messages = groqMessages,
+                                    temperature = 0.7f,
+                                    maxTokens = 8192
+                                )
+                                val response = AiConfigHelper.executeGroqWithKeyRotation(context) { keyToUse ->
+                                    groqService.chatCompletion(
+                                        authorization = "Bearer $keyToUse",
+                                        request = groqRequest
+                                    )
                                 }
-                                throw lastHttpEx ?: IllegalStateException("Không có model Gemini khả dụng")
+                                response.choices?.firstOrNull()?.message?.content
+                                    ?: "Không nhận được phản hồi từ Groq. Vui lòng thử lại."
+                            } else {
+                                val response = AiConfigHelper.executeWithKeyRotation(context) { keyToUse ->
+                                    geminiService.generateContent(
+                                        model = attempt.id,
+                                        apiKey = keyToUse,
+                                        request = geminiRequest
+                                    )
+                                }
+                                // A reply can be split across several parts (and may include "thought" parts):
+                                // join every visible text part instead of keeping only the first one.
+                                val candidate = response.candidates?.firstOrNull()
+                                Log.d("AIChat", "Gemini finishReason=${candidate?.finishReason}, parts=${candidate?.content?.parts?.size}")
+                                candidate?.content?.parts
+                                    ?.filter { it.thought != true }
+                                    ?.mapNotNull { it.text }
+                                    ?.joinToString("")
+                                    ?.takeIf { it.isNotBlank() }
+                                    ?: "Không nhận được phản hồi từ AI. Vui lòng thử lại."
                             }
                         }
-                        // A reply can be split across several parts (and may include "thought" parts):
-                        // join every visible text part instead of keeping only the first one.
-                        val candidate = response.candidates?.firstOrNull()
-                        rawReplyText = candidate?.content?.parts
-                            ?.filter { it.thought != true }
-                            ?.mapNotNull { it.text }
-                            ?.joinToString("")
-                            ?.takeIf { it.isNotBlank() }
-                            ?: "Không nhận được phản hồi từ AI. Vui lòng thử lại."
-                        Log.d("AIChat", "Gemini finishReason=${candidate?.finishReason}, parts=${candidate?.content?.parts?.size}, len=${rawReplyText.length}")
-                    } catch (geminiEx: Exception) {
-                        Log.w("AIChat", "Gemini failed with: ${geminiEx.message}")
-                        // Check if Groq fallback is possible on 503 / 429
-                        val isOverload = AiConfigHelper.isOverloadOrRateLimit(geminiEx)
-                        val groqKeys = AiConfigHelper.getAllConfiguredGroqKeys(context)
-
-                        if (isOverload && groqKeys.isNotEmpty()) {
-                            Log.i("AIChat", "Gemini overloaded! Auto-failing over to Groq GPT-OSS 120B...")
-                            val groqMessages = mutableListOf<GroqMessage>()
-                            groqMessages.add(GroqMessage(role = "system", content = systemPrompt))
-                            validMessages.forEach { msg ->
-                                groqMessages.add(GroqMessage(role = if (msg.role == MessageRole.USER) "user" else "assistant", content = msg.text))
-                            }
-                            if (validMessages.isEmpty()) {
-                                groqMessages.add(GroqMessage(role = "user", content = promptText))
-                            }
-                            val groqRequest = GroqChatRequest(
-                                model = GroqApiService.MODEL_GPT_OSS_120B,
-                                messages = groqMessages,
-                                temperature = 0.7f,
-                                maxTokens = 8192
-                            )
-                            val groqRes = try {
-                                withContext(Dispatchers.IO) {
-                                    AiConfigHelper.executeGroqWithKeyRotation(context) { groqKey ->
-                                        groqService.chatCompletion(authorization = "Bearer $groqKey", request = groqRequest)
-                                    }
-                                }
-                            } catch (groqEx: Exception) {
-                                // Keep the ORIGINAL Gemini error so the user sees the real cause.
-                                Log.w("AIChat", "Groq failover also failed: ${groqEx.message}")
-                                throw geminiEx
-                            }
-                            rawReplyText = groqRes.choices?.firstOrNull()?.message?.content ?: ""
-                            failoverNote = "\n\n*(⚡ Chú thích: Máy chủ Google Gemini gặp tình trạng cao tải (503/429), hệ thống đã tự động chuyển tiếp và xử lý thành công tức thì bằng Groq GPT-OSS 120B!)*"
-                        } else {
-                            throw geminiEx
+                        if (attempt.provider != provider || attempt.id != modelToUse) {
+                            failoverNote = "\n\n*(⚡ Chú thích: ${attempt.displayName} được dùng thay thế vì model bạn chọn đang bị giới hạn hoặc gặp lỗi, hệ thống đã tự động chuyển.)*"
                         }
+                        succeeded = true
+                        break
+                    } catch (e: java.io.IOException) {
+                        // No connectivity: every other model would fail the same way.
+                        throw e
+                    } catch (e: kotlinx.coroutines.CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        Log.w("AIChat", "${attempt.provider}/${attempt.id} failed: ${e.message}. Trying next model...")
+                        // Keep the ORIGINAL error so the user sees the real cause if everything fails.
+                        if (firstError == null) firstError = e
                     }
                 }
+                if (!succeeded) throw firstError ?: IllegalStateException("Không có model AI nào khả dụng.")
 
                 // Parse structured schedule items if present
                 val (textWithoutDelete, deletions) = extractDeletions(rawReplyText, refMap, allEvents)

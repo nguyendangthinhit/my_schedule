@@ -1214,12 +1214,7 @@ fun DayTimelineEventCard(
             .clip(RoundedCornerShape(8.dp))
             .clickable { onClick() },
         shape = RoundedCornerShape(8.dp),
-        color = event.category.getThemedBgColor(),
-        shadowElevation = if (positionedEvent.indentLevel > 0) (positionedEvent.indentLevel * 3 + 2).dp else 1.dp,
-        border = androidx.compose.foundation.BorderStroke(
-            if (positionedEvent.isNested || positionedEvent.indentLevel > 0) 1.5.dp else 1.dp,
-            event.category.getThemedBorderColor()
-        )
+        color = event.category.getThemedBgColor()
     ) {
         Row(
             modifier = Modifier
@@ -1685,12 +1680,7 @@ fun WeekCalendarGridCard(
                                             .clip(RoundedCornerShape(4.dp))
                                             .clickable { onEventClick(pos.event) },
                                         color = pos.event.category.getThemedBgColor(),
-                                        shape = RoundedCornerShape(4.dp),
-                                        shadowElevation = if (pos.indentLevel > 0) (pos.indentLevel * 2 + 1).dp else 0.5.dp,
-                                        border = androidx.compose.foundation.BorderStroke(
-                                            if (pos.isNested || pos.indentLevel > 0) 1.5.dp else 1.dp,
-                                            pos.event.category.getThemedBorderColor()
-                                        )
+                                        shape = RoundedCornerShape(4.dp)
                                     ) {
                                         Column(
                                             modifier = Modifier
@@ -2039,7 +2029,7 @@ fun MonthEventBar(
     Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .height(14.dp),
+            .height(11.dp),
         shape = RoundedCornerShape(2.5.dp),
         color = if (isCurrentMonth) item.bgColor else item.bgColor.copy(alpha = 0.35f),
         border = androidx.compose.foundation.BorderStroke(
@@ -2057,7 +2047,7 @@ fun MonthEventBar(
             lineHeight = 9.sp,
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 2.dp, vertical = 0.5.dp)
+                .padding(horizontal = 2.dp)
         )
     }
 }
@@ -2206,12 +2196,14 @@ fun MonthCalendarGridCard(
                             ) {
                                 // 1. Solar Day + Emoji Thời Tiết (chỉ hiển thị emoji bên phải ngày dương lịch)
                                 Row(
+                                    modifier = Modifier.height(16.dp),
                                     verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.Center
                                 ) {
                                     Text(
                                         text = cellDate.dayOfMonth.toString(),
                                         fontSize = 13.5.sp,
+                                        lineHeight = 16.sp,
                                         fontWeight = if (isCellToday || isSelected) FontWeight.Bold else FontWeight.SemiBold,
                                         color = if (!isCurrentMonth) MaterialTheme.colorScheme.outlineVariant
                                         else if (isCellToday) MaterialTheme.colorScheme.primary
@@ -2223,7 +2215,8 @@ fun MonthCalendarGridCard(
                                         Spacer(modifier = Modifier.width(1.5.dp))
                                         Text(
                                             text = cellWeather.weatherEmoji,
-                                            fontSize = 8.5.sp
+                                            fontSize = 8.5.sp,
+                                            lineHeight = 10.sp
                                         )
                                     }
                                 }
@@ -2233,6 +2226,7 @@ fun MonthCalendarGridCard(
                                     Text(
                                         text = lunar.formatShort(),
                                         fontSize = 8.5.sp,
+                                        lineHeight = 10.sp,
                                         fontWeight = if (isCurrentMonth && (lunar.isImportantLunarDay || lunar.holidayName != null)) FontWeight.Medium else FontWeight.Normal,
                                         color = if (!isCurrentMonth) MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
                                         else if (lunar.holidayName != null) Color(0xFFEF4444).copy(alpha = 0.85f)
@@ -2243,24 +2237,25 @@ fun MonthCalendarGridCard(
                                     )
                                 }
 
-                                Spacer(modifier = Modifier.height(2.dp))
+                                Spacer(modifier = Modifier.height(1.dp))
 
-                                // 3. Event Color Bars (tối đa 2 dòng, nếu > 2 thì dòng 2 là "...")
+                                // 3. Event Color Bars: hiển thị tối đa 4 thanh; nếu nhiều hơn thì 3 thanh + "+N"
                                 if (displayItems.isNotEmpty()) {
+                                    val maxBars = 4
+                                    val overflow = displayItems.size > maxBars
+                                    val shown = if (overflow) maxBars - 1 else displayItems.size
                                     Column(
                                         modifier = Modifier.fillMaxWidth(),
                                         verticalArrangement = Arrangement.spacedBy(1.5.dp)
                                     ) {
-                                        if (displayItems.size == 1) {
-                                            MonthEventBar(item = displayItems[0], isCurrentMonth = isCurrentMonth)
-                                        } else if (displayItems.size == 2) {
-                                            MonthEventBar(item = displayItems[0], isCurrentMonth = isCurrentMonth)
-                                            MonthEventBar(item = displayItems[1], isCurrentMonth = isCurrentMonth)
-                                        } else {
-                                            MonthEventBar(item = displayItems[0], isCurrentMonth = isCurrentMonth)
+                                        displayItems.take(shown).forEach { item ->
+                                            MonthEventBar(item = item, isCurrentMonth = isCurrentMonth)
+                                        }
+                                        if (overflow) {
                                             Text(
-                                                text = "...",
+                                                text = "+${displayItems.size - shown}",
                                                 fontSize = 8.5.sp,
+                                                lineHeight = 9.sp,
                                                 fontWeight = FontWeight.Bold,
                                                 color = if (isCurrentMonth) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.outlineVariant,
                                                 textAlign = TextAlign.Center,
