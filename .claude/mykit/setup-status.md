@@ -7,6 +7,6 @@ Trạng thái: chưa làm | đang làm | done. Bước 3 chỉ "done" khi user �
 | Bước | Việc | Prompt | Trạng thái | Ngày |
 |---|---|---|---|---|
 | 1 | Tạo file hướng dẫn rỗng + file trạng thái | init-files | done | 2026-11-19 |
-| 2 | Rà soát document | review-docs | chưa làm | |
-| 3 | User xác nhận kết quả rà soát | (trong review-docs) | chưa làm | |
-| 4 | Điền dữ liệu vào file hướng dẫn | fill-data | chưa làm | |
+| 2 | Rà soát document | review-docs | done | 2026-11-20 |
+| 3 | User xác nhận kết quả rà soát | (trong review-docs) | done | 2026-11-20 |
+| 4 | Điền dữ liệu vào file hướng dẫn | fill-data | done | 2026-11-20 |
