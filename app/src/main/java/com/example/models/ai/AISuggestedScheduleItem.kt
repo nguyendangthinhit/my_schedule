@@ -15,6 +15,7 @@ data class AISuggestedScheduleItem(
     val endTime: LocalTime = LocalTime.of(9, 0),
     val categoryType: String = "WORK", // WORK, STUDY, PLAY, MEETING
     val reminderNote: String = "",
+    val isImportant: Boolean = false,
     val isSelected: Boolean = true,
     val isAdded: Boolean = false
 ) {
@@ -44,7 +45,8 @@ data class AISuggestedScheduleItem(
             isCompleted = false,
             reminderNote = if (reminderNote.isNotBlank()) reminderNote else "Lên lịch tự động bởi My Schedule AI",
             hasReminder = true,
-            reminderTimeOffsetMins = 15
+            reminderTimeOffsetMins = 15,
+            isImportant = isImportant
         )
     }
 }

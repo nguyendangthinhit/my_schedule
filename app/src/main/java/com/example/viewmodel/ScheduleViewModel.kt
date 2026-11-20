@@ -90,7 +90,8 @@ class ScheduleViewModel(private val repository: EventRepository) : ViewModel() {
                     title = event.title,
                     note = event.reminderNote,
                     startTime = event.startTime,
-                    offsetMinutes = event.reminderTimeOffsetMins
+                    offsetMinutes = event.reminderTimeOffsetMins,
+                        isImportant = event.isImportant
                 )
             }
         }
@@ -261,7 +262,8 @@ class ScheduleViewModel(private val repository: EventRepository) : ViewModel() {
                         title = event.title,
                         note = event.reminderNote,
                         startTime = event.startTime,
-                        offsetMinutes = event.reminderTimeOffsetMins
+                        offsetMinutes = event.reminderTimeOffsetMins,
+                        isImportant = event.isImportant
                     )
                 }
             }
@@ -283,7 +285,8 @@ class ScheduleViewModel(private val repository: EventRepository) : ViewModel() {
                         title = event.title,
                         note = event.reminderNote,
                         startTime = event.startTime,
-                        offsetMinutes = event.reminderTimeOffsetMins
+                        offsetMinutes = event.reminderTimeOffsetMins,
+                        isImportant = event.isImportant
                     )
                 }
             }
@@ -304,7 +307,8 @@ class ScheduleViewModel(private val repository: EventRepository) : ViewModel() {
                         title = event.title,
                         note = event.reminderNote,
                         startTime = event.startTime,
-                        offsetMinutes = event.reminderTimeOffsetMins
+                        offsetMinutes = event.reminderTimeOffsetMins,
+                        isImportant = event.isImportant
                     )
                 }
             }
@@ -423,7 +427,8 @@ class ScheduleViewModel(private val repository: EventRepository) : ViewModel() {
         category = category,
         isCompleted = isCompleted,
         reminderNote = description ?: "",
-        hasReminder = hasReminder
+        hasReminder = hasReminder,
+        isImportant = isImportant
     )
 
     private fun Event.toEntity() = EventEntity(
@@ -436,6 +441,7 @@ class ScheduleViewModel(private val repository: EventRepository) : ViewModel() {
         endTime = endTime.format(DateTimeFormatter.ISO_LOCAL_TIME).substring(0, 5),
         isCompleted = isCompleted,
         hasReminder = hasReminder,
+        isImportant = isImportant,
         updatedAt = System.currentTimeMillis(),
         dirty = true
     )

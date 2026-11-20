@@ -15,7 +15,11 @@ class NotificationReceiver : BroadcastReceiver() {
             id = notifId,
             title = title,
             message = message,
-            isTest = false
+            isTest = false,
+            isImportant = intent.getBooleanExtra("EXTRA_IS_IMPORTANT", false),
+            eventId = intent.getStringExtra("EXTRA_EVENT_ID"),
+            startDate = intent.getStringExtra("EXTRA_START_DATE"),
+            startTime = intent.getStringExtra("EXTRA_START_TIME")
         )
     }
 }

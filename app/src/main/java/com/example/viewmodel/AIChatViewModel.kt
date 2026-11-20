@@ -344,10 +344,12 @@ class AIChatViewModel(
                     append("    \"startTime\": \"09:15\",\n")
                     append("    \"endTime\": \"11:15\",\n")
                     append("    \"category\": \"STUDY\",\n")
-                    append("    \"reminderNote\": \"Phòng học, địa điểm hoặc ghi chú nếu có\"\n")
+                    append("    \"reminderNote\": \"Phòng học, địa điểm hoặc ghi chú nếu có\",\n")
+                    append("    \"important\": false\n")
                     append("  }\n")
                     append("]\n")
                     append("```\n")
+                    append("- Trường \"important\": đặt true CHỈ khi người dùng nói rõ sự kiện đó quan trọng/cần nhắc nổi bật (ví dụ thi, họp quan trọng); mặc định false.\n")
                     append("\nQUY TẮC XÓA / SỬA / THAY THẾ / DỜI LỊCH (RẤT QUAN TRỌNG):\n")
                     append("- Bạn không trực tiếp sửa cơ sở dữ liệu, nhưng bạn ĐỀ XUẤT các sự kiện cần xóa; ứng dụng sẽ hiện thẻ xác nhận và chỉ xóa khi người dùng bấm xác nhận.\n")
                     append("- Khi người dùng muốn xóa/sửa/thay/dời lịch: hãy HIỂU NGỮ CẢNH toàn bộ cuộc trò chuyện (không dựa vào một từ khóa), rồi xác định CHÍNH XÁC những sự kiện người dùng đang nói tới trong [DANH SÁCH SỰ KIỆN CÓ THỂ THAO TÁC].\n")
@@ -677,6 +679,7 @@ class AIChatViewModel(
 
                     val category = obj.optString("category", "STUDY")
                     val reminderNote = obj.optString("reminderNote", "Gợi ý bởi My Schedule AI")
+                    val important = obj.optBoolean("important", false)
 
                     suggestedList.add(
                         AISuggestedScheduleItem(
@@ -686,6 +689,7 @@ class AIChatViewModel(
                             endTime = parsedEndTime,
                             categoryType = category,
                             reminderNote = reminderNote,
+                            isImportant = important,
                             isSelected = true,
                             isAdded = false
                         )

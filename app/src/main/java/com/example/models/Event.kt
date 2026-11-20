@@ -148,7 +148,8 @@ data class Event(
     val isCompleted: Boolean = false,
     val reminderNote: String = "",
     val hasReminder: Boolean = false,
-    val reminderTimeOffsetMins: Int = 15
+    val reminderTimeOffsetMins: Int = 15,
+    val isImportant: Boolean = false
 ) {
     val date: LocalDate get() = startTime.toLocalDate()
     val startHour: Int get() = startTime.hour

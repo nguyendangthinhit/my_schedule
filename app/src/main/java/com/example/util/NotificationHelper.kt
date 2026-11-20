@@ -33,6 +33,8 @@ object NotificationHelper {
 
     const val CHANNEL_ID_SOUND = "schedule_event_channel_sound"
     const val CHANNEL_ID_SILENT = "schedule_event_channel_silent"
+    /** Kênh sự kiện quan trọng: luôn kêu/rung, kể cả khi tắt chuông trong Cài đặt. */
+    const val CHANNEL_ID_IMPORTANT = "schedule_event_channel_important"
 
     fun getPrefs(context: Context): SharedPreferences {
         return context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -96,7 +98,22 @@ object NotificationHelper {
                 setSound(null, null)
             }
 
+            // 3. Channel for important events: always loud, shown on lock screen
+            val importantChannel = NotificationChannel(
+                CHANNEL_ID_IMPORTANT,
+                "Sự kiện quan trọng",
+                NotificationManager.IMPORTANCE_HIGH
+            ).apply {
+                description = "Sự kiện đánh dấu quan trọng: nổi lên toàn màn hình, luôn có âm thanh và rung"
+                enableLights(true)
+                enableVibration(true)
+                vibrationPattern = longArrayOf(0, 500, 250, 500, 250, 500)
+                lockscreenVisibility = android.app.Notification.VISIBILITY_PUBLIC
+                setSound(soundUri, audioAttributes)
+            }
+
             notificationManager.createNotificationChannel(soundChannel)
+            notificationManager.createNotificationChannel(importantChannel)
             notificationManager.createNotificationChannel(silentChannel)
         }
     }
@@ -106,11 +123,20 @@ object NotificationHelper {
         id: Int,
         title: String,
         message: String,
-        isTest: Boolean = false
+        isTest: Boolean = false,
+        isImportant: Boolean = false,
+        eventId: String? = null,
+        startDate: String? = null,
+        startTime: String? = null
     ) {
         if (!isNotificationsEnabled(context) && !isTest) return
 
         createNotificationChannels(context)
+
+        if (isImportant) {
+            showImportantNotification(context, id, title, message, eventId, startDate, startTime)
+            return
+        }
 
         val soundEnabled = isSoundEnabled(context)
         val channelId = if (soundEnabled) CHANNEL_ID_SOUND else CHANNEL_ID_SILENT
@@ -160,13 +186,76 @@ object NotificationHelper {
         }
     }
 
+    /** Android 14+ có thể chặn full-screen intent cho tới khi người dùng cấp quyền trong Cài đặt. */
+    fun canUseFullScreenIntent(context: Context): Boolean {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.UPSIDE_DOWN_CAKE) return true
+        val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        return nm.canUseFullScreenIntent()
+    }
+
+    fun openFullScreenIntentSettings(context: Context) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.UPSIDE_DOWN_CAKE) return
+        try {
+            context.startActivity(
+                Intent(android.provider.Settings.ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT).apply {
+                    data = Uri.parse("package:${context.packageName}")
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+            )
+        } catch (_: Exception) {}
+    }
+
+    private fun showImportantNotification(
+        context: Context,
+        id: Int,
+        title: String,
+        message: String,
+        eventId: String?,
+        startDate: String?,
+        startTime: String?
+    ) {
+        val popupIntent = Intent(context, ImportantEventActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            putExtra(ImportantEventActivity.EXTRA_NOTIF_ID, id)
+            putExtra(ImportantEventActivity.EXTRA_EVENT_ID, eventId)
+            putExtra(ImportantEventActivity.EXTRA_TITLE, title)
+            putExtra(ImportantEventActivity.EXTRA_MESSAGE, message)
+            putExtra(ImportantEventActivity.EXTRA_DATE, startDate)
+            putExtra(ImportantEventActivity.EXTRA_TIME, startTime)
+        }
+        val popupPending = PendingIntent.getActivity(
+            context, id, popupIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val builder = NotificationCompat.Builder(context, CHANNEL_ID_IMPORTANT)
+            .setSmallIcon(android.R.drawable.ic_dialog_alert)
+            .setContentTitle(title)
+            .setContentText(message)
+            .setStyle(NotificationCompat.BigTextStyle().bigText(message))
+            .setPriority(NotificationCompat.PRIORITY_MAX)
+            .setCategory(NotificationCompat.CATEGORY_ALARM)
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+            .setContentIntent(popupPending)
+            .setAutoCancel(true)
+            // Lock screen/off: bật màn hình đầy đủ. Đang dùng máy: Android chỉ hiện banner nổi.
+            .setFullScreenIntent(popupPending, true)
+
+        try {
+            NotificationManagerCompat.from(context).notify(id, builder.build())
+        } catch (_: SecurityException) {
+            // Permission POST_NOTIFICATIONS not granted
+        }
+    }
+
     fun scheduleEventReminder(
         context: Context,
         eventId: String,
         title: String,
         note: String,
         startTime: LocalDateTime,
-        offsetMinutes: Int
+        offsetMinutes: Int,
+        isImportant: Boolean = false
     ) {
         if (!isNotificationsEnabled(context)) return
 
@@ -184,6 +273,9 @@ object NotificationHelper {
             putExtra("EXTRA_TITLE", "Nhắc nhở: $title")
             putExtra("EXTRA_MESSAGE", if (note.isNotBlank()) note else "Sự kiện diễn ra lúc ${startTime.toLocalTime()}")
             putExtra("EXTRA_SOUND_ENABLED", isSoundEnabled(context))
+            putExtra("EXTRA_IS_IMPORTANT", isImportant)
+            putExtra("EXTRA_START_DATE", startTime.toLocalDate().toString())
+            putExtra("EXTRA_START_TIME", startTime.toLocalTime().toString().take(5))
         }
 
         val pendingIntent = PendingIntent.getBroadcast(
@@ -265,7 +357,8 @@ object NotificationHelper {
                     title = event.title,
                     note = event.description ?: "",
                     startTime = startTime,
-                    offsetMinutes = offsetMinutes
+                    offsetMinutes = offsetMinutes,
+                    isImportant = event.isImportant
                 )
             }
         }

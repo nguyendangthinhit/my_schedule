@@ -75,6 +75,7 @@ fun AddEventScreen(
     var endMinute by remember { mutableIntStateOf(existingEvent?.endTime?.minute ?: 30) }
     var hasReminder by remember { mutableStateOf(existingEvent?.hasReminder ?: true) }
     var reminderOffsetMins by remember { mutableIntStateOf(existingEvent?.reminderTimeOffsetMins ?: 15) }
+    var isImportant by remember { mutableStateOf(existingEvent?.isImportant ?: false) }
     var titleError by remember { mutableStateOf(false) }
 
     // 7 days of week repeater
@@ -228,7 +229,8 @@ fun AddEventScreen(
                 category = selectedCategory,
                 reminderNote = note.trim(),
                 hasReminder = hasReminder,
-                reminderTimeOffsetMins = reminderOffsetMins
+                reminderTimeOffsetMins = reminderOffsetMins,
+                isImportant = isImportant && hasReminder
             )
             viewModel.updateEvent(updatedEvent, context)
             viewModel.setSelectedDate(eventDate)
@@ -250,7 +252,8 @@ fun AddEventScreen(
                     isCompleted = false,
                     reminderNote = note.trim(),
                     hasReminder = hasReminder,
-                    reminderTimeOffsetMins = reminderOffsetMins
+                    reminderTimeOffsetMins = reminderOffsetMins,
+                    isImportant = isImportant && hasReminder
                 )
                 viewModel.addEvent(newEvent, context)
             }
@@ -806,6 +809,38 @@ fun AddEventScreen(
                                     )
                                 }
                             }
+                        }
+
+                        Spacer(modifier = Modifier.height(14.dp))
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text("Sự kiện quan trọng", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
+                                Text(
+                                    "Nổi lên toàn màn hình, luôn kêu kể cả khi tắt chuông",
+                                    fontSize = 12.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            Switch(
+                                checked = isImportant,
+                                onCheckedChange = { checked ->
+                                    isImportant = checked
+                                    if (checked && !com.example.util.NotificationHelper.canUseFullScreenIntent(context)) {
+                                        Toast.makeText(context, "Hãy cấp quyền \"Thông báo toàn màn hình\" để sự kiện nổi lên khi khóa máy", Toast.LENGTH_LONG).show()
+                                        com.example.util.NotificationHelper.openFullScreenIntentSettings(context)
+                                    }
+                                },
+                                colors = SwitchDefaults.colors(
+                                    checkedThumbColor = Color.White,
+                                    checkedTrackColor = MaterialTheme.colorScheme.error
+                                )
+                            )
                         }
                     }
                 }

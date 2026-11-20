@@ -34,6 +34,7 @@ data class EventEntity(
     @ColumnInfo(name = "is_completed") val isCompleted: Boolean = false,
     @ColumnInfo(name = "completed_at") val completedAt: Long? = null,
     @ColumnInfo(name = "has_reminder") val hasReminder: Boolean = false,
+    @ColumnInfo(name = "is_important", defaultValue = "0") val isImportant: Boolean = false,
     @ColumnInfo(name = "created_at") val createdAt: Long = System.currentTimeMillis(),
     @ColumnInfo(name = "updated_at") val updatedAt: Long = System.currentTimeMillis(),
     @ColumnInfo(name = "deleted_at") val deletedAt: Long? = null,
