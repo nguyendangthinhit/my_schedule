@@ -17,3 +17,5 @@ Bộ document mô tả **dự án cũ** (app Android hiện tại, Room v5). S�
 | 11 | Hướng dẫn sử dụng | — | Chưa có (hoãn); tính năng mô tả ở `docs/archive/project-state-old.md` §2 |
 
 Tài liệu ngoài bộ 11 loại: `docs/archive/project-state-old.md` (đã lưu trữ 2026-11-20; phần tính năng còn tham khảo được, phần kỹ thuật cũ), `my-schedule-sync-app-tasks.md` (kế hoạch sync, thuộc dự án mới), `ADB_DEPLOY_NOTES.md`, `AI_CHAT_TEST_NOTES.md`, `docs/archive/TEMP_AI_FIX_NOTES.md` (đã lưu trữ), `note.txt`, `README.md` (mẫu AI Studio, cũ).
+
+**Vai trò agent con (2026-11-20):** doc chuẩn của hệ thống Agent nằm ở `docs/agent-chinh/` (bản sao từ repo `Agent`, không sửa ở đây). Xem `AGENTS.md` mục 1b. Khi mâu thuẫn với các doc mô tả dự án cũ ở trên, theo `docs/agent-chinh/`.
